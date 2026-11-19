@@ -10,12 +10,12 @@
 <script src="/rigs-ui.js" type="module"></script>
 </head>
 <body>
-<main>
-  <nav class="page-nav" aria-label="Pagini"><a href="/">Portofoliu</a><a href="/rigs.html" aria-current="page">Riguri GPU</a><a href="/finance/index.html">Finanțe</a></nav>
-  <header>
+<main class="app-main rigs-page">
+  <header class="app-header"><a class="app-brand" href="/">Pearl <span>Monitor</span></a><nav class="page-nav" aria-label="Pagini"><a href="/">Portofoliu</a><a href="/rigs.html" aria-current="page">Riguri GPU</a><a href="/finance/index.html">Finanțe</a></nav></header>
+  <div class="page-heading">
     <h1>Monitorizare riguri</h1>
     <button id="refresh" type="button">Actualizează</button>
-  </header>
+  </div>
   <p id="status" role="status">Se citesc datele NVIDIA…</p>
   <div id="summary" class="summary"></div>
   <div id="rigs"></div>

@@ -19,3 +19,49 @@
 .quick-purchase button { background: #65e3c5; color: #062419; font-weight: 700; }
 .quick-purchase [role="alert"] { color: #ffd28b; }
 .purchase-rig { display: grid; gap: 5px; min-width: 0; }
+#finance-page.app-main { max-width: 1600px; padding-inline: clamp(14px, 2.6vw, 40px); }
+body { background: radial-gradient(ellipse at 15% 0, #142c43 0, var(--app-bg) 48%); }
+.pearl-run-rate { background: var(--app-panel); border-color: var(--app-border); }
+.pearl-run-rate tbody td { font-variant-numeric: tabular-nums; }
+.pearl-receipts div { background: var(--app-bg); border-color: var(--app-border); min-width: 0; }
+.pearl-receipts dd { font-size: clamp(16px, 1.6vw, 22px); }
+#finance-page .fin-tabs { scroll-margin-block: 14px; }
+@media (max-width: 900px) {
+  .pearl-run-rate table, .pearl-run-rate tbody { display: block; }
+  .pearl-run-rate thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .pearl-run-rate tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; padding: 10px 0; border-top: 1px solid var(--app-border); }
+  .pearl-run-rate th, .pearl-run-rate td { border: 0; padding: 3px 0; text-align: left; white-space: normal; }
+  .pearl-run-rate th, .pearl-run-rate td:last-child { grid-column: 1 / -1; font-weight: 700; }
+  .pearl-run-rate td::before { content: attr(data-label); display: block; color: var(--app-muted); font-size: 11px; font-weight: 400; }
+}
+.finance-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.finance-heading a, .finance-method summary { color: var(--app-accent); }
+.finance-method { margin: 12px 0; }
+.finance-method summary { cursor: pointer; width: fit-content; min-height: 36px; align-content: center; }
+.finance-method p { margin-block: 8px; }
+#registru { scroll-margin-top: 12px; }
+.pearl-run-rate .scroll table { font-size: 14px; }
+.pearl-run-rate .scroll th { font-size: 13px; color: var(--app-muted); }
+.pearl-run-rate .scroll tbody th { font-weight: 700; color: var(--app-text); }
+@media (max-width: 900px) {
+  .pearl-run-rate .scroll tbody th { font-size: 16px; }
+  .pearl-receipts div:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 420px) {
+  #finance-page .fin-kpi strong { font-size: clamp(17px, 5vw, 21px); white-space: normal; overflow-wrap: anywhere; }
+  #finance-page .fin-hero-total strong { font-size: clamp(22px, 7vw, 30px); white-space: normal; overflow-wrap: anywhere; }
+}
+#registru-title { font-size: clamp(20px, 3vw, 28px); margin-block: 0 12px; }
+#registru .fin-hero {
+  background: var(--app-panel);
+  border-color: var(--app-border);
+  padding: 16px 20px;
+}
+#registru .fin-hero > div:first-child { display: none; }
+#registru .fin-hero-total { min-width: 0; padding: 0; border: 0; gap: 5px; }
+#registru .fin-tabs button.active { border-color: var(--app-accent); color: var(--app-accent); }
+@media (max-width: 720px) {
+  #registru .fin-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; border-bottom: 0; }
+  #registru .fin-tabs button { min-height: 42px; padding: 6px 8px; text-align: left; white-space: normal; border: 1px solid var(--app-border); border-radius: 7px; background: var(--app-panel); }
+  #registru .fin-tabs button.active { background: #193e3a; }
+}

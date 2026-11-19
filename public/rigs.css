@@ -8,7 +8,6 @@
 body { margin: 0; background: radial-gradient(ellipse at top, #18334d, #081120 55%); min-height: 100vh; }
 main { max-width: 1280px; padding: clamp(16px, 4vw, 42px); margin: auto; }
 a { color: #80decf; }
-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
 h1 { margin: 0; font-size: clamp(25px, 5vw, 40px); }
 h2 { margin: 0; font-size: 19px; }
 button { background: #65e3c5; color: #062419; padding: 9px 14px; border: 0; border-radius: 9px; font: inherit; font-weight: 650; cursor: pointer; }
@@ -25,3 +24,23 @@ td, th { padding: 9px 10px; border-top: 1px solid #304961; white-space: nowrap; 
 th { color: #abc0d0; font-weight: 550; }
 .mining { color: #80e9ca; }
 .warn { color: #ffd28b; }
+
+main.app-main { max-width: 1600px; }
+body { background: radial-gradient(ellipse at 15% 0, #142c43 0, var(--app-bg) 48%); }
+.metric, .rig { background: var(--app-panel); border-color: var(--app-border); }
+.rig-summary { cursor: pointer; min-height: 42px; align-content: center; color: var(--app-text); }
+.rig-summary strong { margin-inline: 6px 12px; font-size: 18px; }
+.rig-meta { color: var(--app-muted); font-size: 13px; }
+.rig-meta.warn { color: #ffd28b; }
+@media (max-width: 960px) {
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .rig .table-scroll table, .rig .table-scroll tbody { display: block; }
+  .rig .table-scroll thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .rig .table-scroll tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--app-border); }
+  .rig .table-scroll td { border: 0; padding: 4px 0; white-space: normal; overflow-wrap: anywhere; }
+  .rig .table-scroll td:first-child, .rig .table-scroll td:nth-child(2) { grid-column: 1 / -1; }
+  .rig .table-scroll td:first-child { font-weight: 750; }
+  .rig .table-scroll td:nth-child(n+3)::before { content: attr(data-label); display: block; color: var(--app-muted); font-size: 11px; }
+}

@@ -80,7 +80,7 @@ export default function PearlRunRate({ revision, onPurchase }: { revision: numbe
   const missingRates = observed.filter(rig => miningCount(rig) > 0 && reportedRate(rig) === null).map(rig => rig.name);
   return (
     <section className="pearl-run-rate" aria-labelledby="pearl-run-rate-title">
-      <h1 id="pearl-run-rate-title">Venit și recuperare pe rig</h1>
+      <div className="finance-heading"><h1 id="pearl-run-rate-title">Venit și recuperare pe rig</h1><a href="#registru">Mergi la registru ↓</a></div>
       {failed && <p role="status">Citirea datelor a eșuat. Reîncercăm automat.</p>}
       {!snapshot && !failed && <p role="status">Se citesc registrul și datele Pearl…</p>}
       {snapshot && <QuickPurchase rigs={snapshot.ledger} onSaved={onPurchase} />}
@@ -92,10 +92,13 @@ export default function PearlRunRate({ revision, onPurchase }: { revision: numbe
           <div><dt>Total Pearl cu soldul curent</dt><dd>{amount(pearlTotalUsd, "USD")}</dd></div>
           <div><dt>Total Vast + Pearl cu soldul curent</dt><dd>{amount(vastUsd === null || pearlTotalUsd === null ? null : vastUsd + pearlTotalUsd, "USD")}</dd></div>
         </dl>
-        <p>Pearl nevândut include soldul din wallet și soldul Pearl Fortune, inclusiv recompensele în așteptare. Valoarea folosește prețul curent CoinGecko. Capitalul de recuperat din registru folosește încasările efective.</p>
-        <p>{day?.projected ? "Proiecția Pearl Fortune pe 24 h, la ritmul ultimei ore, se alocă" : "Producția Pearl Fortune din ultimele 24 de ore complete se alocă"} după ponderea fiecărui rig în hashrate-ul total raportat. Este o estimare bazată pe hashrate-ul curent.</p>
+        <details className="finance-method">
+          <summary>Cum sunt calculate estimările</summary>
+          <p>Pearl nevândut include soldul din wallet și soldul Pearl Fortune, inclusiv recompensele în așteptare. Valoarea folosește prețul curent CoinGecko. Capitalul de recuperat din registru folosește încasările efective.</p>
+          <p>{day?.projected ? "Proiecția Pearl Fortune pe 24 h, la ritmul ultimei ore, se alocă" : "Producția Pearl Fortune din ultimele 24 de ore complete se alocă"} după ponderea fiecărui rig în hashrate-ul total raportat. Este o estimare bazată pe hashrate-ul curent.</p>
+          <p>Costul folosește consumul GPU curent, plus {Math.round(snapshot.mining.overhead * 100)}% pentru restul sistemului, la {amount(snapshot.mining.tariff, "lei/kWh")}. Capitalul rămas reflectă încasările alocate și costurile din registru.</p>
+        </details>
         {!hasRates && <p role="status">{missingRates.length ? `Hashrate indisponibil pentru ${missingRates.join(", ")}. Alocarea producției așteaptă citiri de la toate rigurile care minează.` : "Alocarea producției așteaptă telemetrie completă."}</p>}
-        <p>Costul folosește consumul GPU curent, plus {Math.round(snapshot.mining.overhead * 100)}% pentru restul sistemului, la {amount(snapshot.mining.tariff, "lei/kWh")}.</p>
         <div className="scroll" tabIndex={0} role="region" aria-label="Venituri și recuperare pe rig">
           <table><thead><tr>{["Rig", "Capital net", "De recuperat", "Hashrate", "PRL/zi", "Venit/zi", "Curent/zi", "Net/zi", "Recuperare la ritmul actual"].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
             <tbody>{snapshot.ledger.map(entry => {
@@ -112,13 +115,12 @@ export default function PearlRunRate({ revision, onPurchase }: { revision: numbe
               const recovery = remaining === 0 ? "Recuperat" : net !== null && net <= 0 ? "Net ≤ 0"
                 : net !== null && remaining !== null ? amount(Math.ceil(remaining / net), "zile") : "—";
               return <tr key={entry.id}><th scope="row">{entry.name}</th>
-                <td>{amount(entry.capital_ron, "lei")}</td><td>{amount(entry.remaining_capital_ron, "lei")}</td>
-                <td>{amount(rate === null ? null : rate / 1e15, "PH/s")}</td><td>{amount(prl, "PRL")}</td><td>{amount(revenue, "lei")}</td><td>{amount(cost, "lei")}</td>
-                <td>{amount(net, "lei")}</td><td>{recovery}</td></tr>;
+                <td data-label="Capital net">{amount(entry.capital_ron, "lei")}</td><td data-label="De recuperat">{amount(entry.remaining_capital_ron, "lei")}</td>
+                <td data-label="Hashrate">{amount(rate === null ? null : rate / 1e15, "PH/s")}</td><td data-label="PRL/zi">{amount(prl, "PRL")}</td><td data-label="Venit/zi">{amount(revenue, "lei")}</td><td data-label="Curent/zi">{amount(cost, "lei")}</td>
+                <td data-label="Net/zi">{amount(net, "lei")}</td><td data-label="Recuperare la ritmul actual">{recovery}</td></tr>;
             })}</tbody>
           </table>
         </div>
-        <p>Capitalul rămas vine din registru și reflectă încasările alocate și costurile înregistrate. Recuperarea folosește venitul Pearl estimat și puterea curentă a fiecărui rig.</p>
       </>}
     </section>
   );

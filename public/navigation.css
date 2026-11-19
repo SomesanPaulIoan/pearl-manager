@@ -1,24 +1,35 @@
-.page-nav {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  margin: 18px 0;
-  padding: 5px;
-  border: 1px solid #304961;
-  border-radius: 14px;
-  background: #0b1929;
+:root {
+  color-scheme: dark;
+  --app-bg: #08111e;
+  --app-panel: #111e2f;
+  --app-border: #263a50;
+  --app-text: #edf5fc;
+  --app-muted: #a5b9cc;
+  --app-accent: #77e5ca;
 }
-.page-nav a {
-  display: grid;
-  place-items: center;
-  min-height: 44px;
-  padding: 6px 10px;
-  border-radius: 9px;
-  color: #c5d7e9;
-  text-align: center;
-  text-decoration: none;
-  font-weight: 650;
+.app-main { width: min(100%, 1600px); margin-inline: auto; padding: 0 clamp(14px, 2.6vw, 40px) 42px; }
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 14px;
+  border-bottom: 1px solid var(--app-border);
+  margin-bottom: clamp(16px, 2.5vw, 32px);
 }
-.page-nav a:hover { background: #20384e; }
-.page-nav a:focus-visible { outline: 2px solid #80decf; outline-offset: 2px; }
-.page-nav a[aria-current="page"] { background: #65e3c5; color: #062419; }
+.app-brand { color: var(--app-text); font-size: 20px; font-weight: 760; letter-spacing: -.04em; text-decoration: none; white-space: nowrap; }
+.app-brand span { color: var(--app-accent); }
+.page-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-bg); }
+.page-nav a { display: grid; place-items: center; min-height: 42px; padding: 6px 14px; border-radius: 8px; color: var(--app-muted); text-align: center; text-decoration: none; font-size: 14px; font-weight: 650; white-space: nowrap; }
+.page-nav a:hover { background: #20384e; color: var(--app-text); }
+.page-nav a[aria-current="page"] { background: #193e3a; color: #a4f4df; }
+:where(a, button, input, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--app-accent); outline-offset: 3px; }
+.page-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.page-heading h1 { margin: 0; font-size: clamp(26px, 3.5vw, 39px); font-weight: 750; line-height: 1.1; letter-spacing: -.035em; }
+@media (max-width: 560px) {
+  .app-header { display: grid; gap: 10px; padding-block: 10px; }
+  .page-nav a { padding-inline: 4px; }
+}
+@media (max-width: 560px) {
+  .app-header { grid-template-columns: minmax(0, 1fr); }
+}

@@ -33,10 +33,11 @@ async function refresh() {
         : period.projected ? `${labels[period.hours]} · proiecție (${period.coveredHours}/${period.hours} h)`
         : `${labels[period.hours]} · istoric`;
       row.append(label);
-      for (const [metric, unit] of [
-        ['prl', 'PRL'], ['revenueRon', 'lei'], ['energyKwh', 'kWh'], ['energyRon', 'lei'], ['profitRon', 'lei'],
+      for (const [metric, unit, name] of [
+        ['prl', 'PRL', 'Producție'], ['revenueRon', 'lei', 'Venit'], ['energyKwh', 'kWh', 'Consum'], ['energyRon', 'lei', 'Curent'], ['profitRon', 'lei', 'Venit minus curent'],
       ]) {
         const cell = row.insertCell();
+        cell.dataset.label = name;
         cell.textContent = value(period[metric], unit);
         if (metric === 'profitRon' && period[metric] !== null) {
           cell.className = period[metric] < 0 ? 'profit-negative' : 'profit-positive';

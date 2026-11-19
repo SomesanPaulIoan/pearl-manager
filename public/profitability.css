@@ -7,3 +7,21 @@
 .profit-table th:first-child { text-align: left; }
 .profit-negative { color: #ffd28b; }
 .profit-positive { color: #80e9ca; }
+@media (max-width: 650px) {
+  .profit-table table, .profit-table tbody { display: block; }
+  .profit-table table[hidden] { display: none; }
+  .profit-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .profit-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 8px; padding: 9px 0 11px; border-top: 1px solid var(--app-border); }
+  .profit-table th, .profit-table td { border: 0; padding: 3px 0; text-align: left; white-space: normal; }
+  .profit-table th, .profit-table td:last-child { grid-column: 1 / -1; font-weight: 700; }
+  .profit-table td::before { content: attr(data-label); display: block; color: var(--app-muted); font-size: 11px; font-weight: 400; }
+}
+@media (min-width: 1050px) {
+  #profitability { display: grid; grid-template-columns: minmax(265px, .8fr) minmax(0, 2fr); gap: 24px; align-items: center; }
+  .profit-table { margin-top: 0; }
+  .profit-overview p:last-child { margin-bottom: 0; }
+}
+@media (min-width: 365px) and (max-width: 650px) {
+  .profit-table tr { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .profit-table td:last-child { grid-column: span 2; }
+}

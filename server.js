@@ -62,10 +62,18 @@ async function getFortune(){
 
 // Historical charts are read-only and cached to avoid exceeding public API limits.
 const historyCache=new Map();
+const historyRequests=new Map();
 async function historyCached(key,ttl,fn){
  const cached=historyCache.get(key);
  if(cached && Date.now()-cached.at<ttl)return cached.value;
- const value=await fn(); historyCache.set(key,{at:Date.now(),value});return value;
+ if (!historyRequests.has(key)) {
+   const request=fn().then(value=>{
+     historyCache.set(key,{at:Date.now(),value});
+     return value;
+   }).finally(()=>historyRequests.delete(key));
+   historyRequests.set(key,request);
+ }
+ return historyRequests.get(key);
 }
 async function priceHistory(){return historyCached('price24h',300000,async()=>{
  const url='https://api.coingecko.com/api/v3/coins/pearl-2/market_chart?vs_currency=usd&days=1';
@@ -90,9 +98,7 @@ async function fortuneHistory(){
  const rolling=Array.isArray(summary?.rolling_hashrates)?summary.rolling_hashrates.map(x=>({hours:x.hours,phs:Number(x.hashrate)/1e15})):[];
  return {points,rolling,source:'Pearl Fortune · hashrate personal',updatedAt:new Date().toISOString()};
 }
-let priceCache=null;
-async function getPrice(){
-  if(priceCache && Date.now()-priceCache.fetchedAt<300000)return priceCache.data;
+async function getPrice(){return historyCached('prlQuote',300000,async()=>{
   const url='https://api.coingecko.com/api/v3/simple/price?ids=pearl-2&vs_currencies=usd&include_24hr_change=true&include_last_updated_at=true';
   const r=await safeFetch(url,9000); // public endpoint; demo key optional below
   const json=await r.json();const coin=json['pearl-2'];
@@ -100,8 +106,8 @@ async function getPrice(){
   const updatedAt=coin.last_updated_at?new Date(coin.last_updated_at*1000).toISOString():null;
   if(updatedAt && Date.now()-Date.parse(updatedAt)>900000)throw Error('Cotația CoinGecko este mai veche de 15 minute');
   const data={amount:coin.usd,change24h:coin.usd_24h_change??null,quoteUpdatedAt:updatedAt,source:'CoinGecko (Pearl / pearl-2)',url:'https://www.coingecko.com/en/coins/pearl-research',note:'Preț orientativ agregat de piață.'};
-  priceCache={fetchedAt:Date.now(),data};return data;
-}
+  return data;
+});}
 const miningHistory = createMiningHistory(new URL('./data/', import.meta.url), address, fortuneSummary, fleetStatus);
 async function profitability() {
   const results = await Promise.allSettled([

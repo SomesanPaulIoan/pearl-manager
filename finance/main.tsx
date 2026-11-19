@@ -9,7 +9,10 @@ function FinancePage() {
   const [revision, setRevision] = useState(0);
   return <>
     <PearlRunRate revision={revision} onPurchase={() => setRevision(value => value + 1)} />
-    <Finance key={revision} />
+    <section id="registru" tabIndex={-1} aria-labelledby="registru-title">
+      <h2 id="registru-title">Registru financiar</h2>
+      <Finance key={revision} />
+    </section>
   </>;
 }
 
