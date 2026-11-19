@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import QuickPurchase from "./purchase";
 
 type LedgerRig = {
   id: string;
@@ -25,7 +26,7 @@ async function get(path: string, signal: AbortSignal) {
   return result.json();
 }
 
-export default function PearlRunRate() {
+export default function PearlRunRate({ revision, onPurchase }: { revision: number; onPurchase: () => void }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -54,7 +55,7 @@ export default function PearlRunRate() {
     void refresh();
     const timer = setInterval(refresh, 60_000);
     return () => { clearInterval(timer); controller.abort(); };
-  }, []);
+  }, [revision]);
 
   function receiptsUsd(activity: string) {
     const receipts = snapshot?.receipts.filter(row =>
@@ -84,6 +85,7 @@ export default function PearlRunRate() {
       <h1 id="pearl-run-rate-title">Venit și recuperare pe rig</h1>
       {failed && <p role="status">Citirea datelor a eșuat. Reîncercăm automat.</p>}
       {!snapshot && !failed && <p role="status">Se citesc registrul și datele Pearl…</p>}
+      {snapshot && <QuickPurchase rigs={snapshot.ledger} onSaved={onPurchase} />}
       {snapshot && !failed && <>
         <dl className="pearl-receipts" aria-label="Încasări și valoare Pearl">
           <div><dt>Recuperat din Vast</dt><dd>{amount(vastUsd, "USD")}</dd></div>

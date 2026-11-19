@@ -10,3 +10,12 @@
 .pearl-receipts div { background: #0b1017; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
 .pearl-receipts dt { color: var(--muted); }
 .pearl-receipts dd { margin: 5px 0 0; font-size: 19px; font-weight: 700; }
+.quick-purchase { margin: 15px 0; }
+.quick-purchase summary { cursor: pointer; display: inline-block; border-radius: 9px; background: #65e3c5; color: #062419; padding: 12px 16px; font-weight: 700; }
+.quick-purchase summary::-webkit-details-marker { display: none; }
+.quick-purchase form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); align-items: end; gap: 12px; margin-top: 14px; }
+.quick-purchase label { display: grid; gap: 5px; min-width: 0; }
+.quick-purchase input, .quick-purchase select, .quick-purchase button { min-height: 42px; width: 100%; border: 1px solid #394655; border-radius: 8px; padding: 8px 10px; color: inherit; background: #0b1017; }
+.quick-purchase button { background: #65e3c5; color: #062419; font-weight: 700; }
+.quick-purchase [role="alert"] { color: #ffd28b; }
+.purchase-rig { display: grid; gap: 5px; min-width: 0; }
