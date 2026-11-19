@@ -8,7 +8,7 @@ type LedgerRig = {
   remaining_capital_ron: string | null;
 };
 type Gpu = { mining: string; powerW: number | null };
-type Rig = { name: string; financialRigId?: string; state: string; gpus: Gpu[]; minerHashrateHs?: number };
+type Rig = { name: string; financialRigId?: string; state: string; gpus: Gpu[]; minerHashrateHs?: number | null };
 type Mining = { periods: { hours: number; prl: number | null; revenueRon: number | null }[]; tariff: number; overhead: number };
 type Receipt = { activity: string; type: string; cash_status: string; currency: string; amount: string; voided: boolean };
 type Balance = { ok: true; amount: number } | { ok: false };
@@ -74,12 +74,10 @@ export default function PearlRunRate({ revision, onPurchase }: { revision: numbe
   const complete = observed.length > 0 && observed.every(rig =>
     rig.state === "online" && rig.gpus.length > 0 && rig.gpus.every(gpu => gpu.mining !== "unknown"));
   const hasRates = complete && observed.every(rig => miningCount(rig) === 0 || (rig.minerHashrateHs ?? 0) > 0);
-  const weight = (rig: Rig) => hasRates
-    ? miningCount(rig) > 0 ? rig.minerHashrateHs ?? 0 : 0
-    : miningCount(rig);
-  const totalWeight = observed.reduce((sum, rig) => sum + weight(rig), 0);
+  const reportedRate = (rig: Rig) => miningCount(rig) > 0 ? rig.minerHashrateHs ?? null : 0;
+  const totalRate = hasRates ? observed.reduce((sum, rig) => sum + (reportedRate(rig) ?? 0), 0) : 0;
   const day = snapshot?.mining.periods.find(period => period.hours === 24);
-  const method = hasRates ? "proporțional cu hashrate-ul local raportat" : "proporțional cu numărul de GPU pe care este detectat minerul";
+  const missingRates = observed.filter(rig => miningCount(rig) > 0 && reportedRate(rig) === null).map(rig => rig.name);
   return (
     <section className="pearl-run-rate" aria-labelledby="pearl-run-rate-title">
       <h1 id="pearl-run-rate-title">Venit și recuperare pe rig</h1>
@@ -95,12 +93,15 @@ export default function PearlRunRate({ revision, onPurchase }: { revision: numbe
           <div><dt>Total Vast + Pearl cu soldul curent</dt><dd>{amount(vastUsd === null || pearlTotalUsd === null ? null : vastUsd + pearlTotalUsd, "USD")}</dd></div>
         </dl>
         <p>Pearl nevândut include soldul din wallet și soldul Pearl Fortune, inclusiv recompensele în așteptare. Valoarea folosește prețul curent CoinGecko. Capitalul de recuperat din registru folosește încasările efective.</p>
-        <p>Alocăm estimativ producția Pearl Fortune din ultimele 24 h {method}. {hasRates ? "" : "Calculul presupune contribuții egale per GPU."} Costul folosește consumul GPU curent, plus {Math.round(snapshot.mining.overhead * 100)}% pentru restul sistemului, la {amount(snapshot.mining.tariff, "lei/kWh")}.</p>
+        <p>Producția Pearl Fortune din ultimele 24 h se alocă după ponderea fiecărui rig în hashrate-ul total raportat. Este o estimare bazată pe hashrate-ul curent.</p>
+        {!hasRates && <p role="status">{missingRates.length ? `Hashrate indisponibil pentru ${missingRates.join(", ")}. Alocarea producției așteaptă citiri de la toate rigurile care minează.` : "Alocarea producției așteaptă telemetrie completă."}</p>}
+        <p>Costul folosește consumul GPU curent, plus {Math.round(snapshot.mining.overhead * 100)}% pentru restul sistemului, la {amount(snapshot.mining.tariff, "lei/kWh")}.</p>
         <div className="scroll" tabIndex={0} role="region" aria-label="Venituri și recuperare pe rig">
-          <table><thead><tr>{["Rig", "Capital net", "De recuperat", "PRL/zi", "Venit/zi", "Curent/zi", "Net/zi", "Recuperare la ritmul actual"].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
+          <table><thead><tr>{["Rig", "Capital net", "De recuperat", "Hashrate", "PRL/zi", "Venit/zi", "Curent/zi", "Net/zi", "Recuperare la ritmul actual"].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
             <tbody>{snapshot.ledger.map(entry => {
               const rig = observed.find(item => item.financialRigId ? item.financialRigId === entry.id : item.name === entry.name);
-              const share = rig && complete && totalWeight > 0 ? weight(rig) / totalWeight : null;
+              const rate = rig?.state === "online" ? rig.minerHashrateHs ?? null : null;
+              const share = rig && totalRate > 0 ? (reportedRate(rig) ?? 0) / totalRate : null;
               const prl = day?.prl != null && share !== null ? day.prl * share : null;
               const revenue = day?.revenueRon != null && share !== null ? day.revenueRon * share : null;
               const power = rig?.state === "online" && rig.gpus.every(gpu => Number.isFinite(gpu.powerW))
@@ -112,7 +113,7 @@ export default function PearlRunRate({ revision, onPurchase }: { revision: numbe
                 : net !== null && remaining !== null ? amount(Math.ceil(remaining / net), "zile") : "—";
               return <tr key={entry.id}><th scope="row">{entry.name}</th>
                 <td>{amount(entry.capital_ron, "lei")}</td><td>{amount(entry.remaining_capital_ron, "lei")}</td>
-                <td>{amount(prl, "PRL")}</td><td>{amount(revenue, "lei")}</td><td>{amount(cost, "lei")}</td>
+                <td>{amount(rate === null ? null : rate / 1e15, "PH/s")}</td><td>{amount(prl, "PRL")}</td><td>{amount(revenue, "lei")}</td><td>{amount(cost, "lei")}</td>
                 <td>{amount(net, "lei")}</td><td>{recovery}</td></tr>;
             })}</tbody>
           </table>
