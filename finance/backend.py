@@ -1,17 +1,19 @@
 """Serve the existing financial ledger without starting GPU Control Center or its workers."""
 from hmac import compare_digest
 from pathlib import Path
+from urllib.parse import parse_qs
 from types import SimpleNamespace
 import os
 import sys
 
 from gcc.core import Problem, Store
-from gcc.financial import Financial
+from gcc.financial import Financial, day
 from gcc.financial_api import route
 from gcc.http import Handler, Limiter, Server
 from gcc.vast import Vast
 from gcc.worker import Worker
 from pearl_sales import endpoint as pearl_sales
+from capital_history import capital_history
 
 
 class FinanceHandler(Handler):
@@ -36,6 +38,14 @@ class FinanceHandler(Handler):
                     rented = machine.get('rented')
                     result[rig['id']] = 'active' if machine.get('online') is True and isinstance(rented, int) and rented > 0 else 'idle' if rented == 0 else 'unknown'
             return self.send(200, result)
+        if url.path == '/api/financial/capital-history' and self.command == 'GET':
+            query = parse_qs(url.query)
+            start = day(query.get('start', [None])[0])
+            end = day(query.get('end', [None])[0])
+            if start and end and start > end:
+                raise Problem('Interval de date invalid.')
+            archive = Path(__file__).resolve().parent.parent / 'data/pearl-credited-days.json'
+            return self.send(200, capital_history(app.financial, archive, start, end))
         if url.path == '/api/financial/pearl-sales':
             return self.send(200, pearl_sales(app.financial, body, 'pearl-monitor'))
         if body and url.path in ('/api/financial/transaction', '/api/financial/bulk'):
