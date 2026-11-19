@@ -9,7 +9,7 @@ type LedgerRig = {
 };
 type Gpu = { mining: string; powerW: number | null };
 type Rig = { name: string; financialRigId?: string; state: string; gpus: Gpu[]; minerHashrateHs?: number | null };
-type Mining = { periods: { hours: number; prl: number | null; revenueRon: number | null }[]; tariff: number; overhead: number };
+type Mining = { periods: { hours: number; projected: boolean; prl: number | null; revenueRon: number | null }[]; tariff: number; overhead: number };
 type Receipt = { activity: string; type: string; cash_status: string; currency: string; amount: string; voided: boolean };
 type Balance = { ok: true; amount: number } | { ok: false };
 type PearlStatus = { wallet: Balance; fortune: Balance; price: Balance };
@@ -93,7 +93,7 @@ export default function PearlRunRate({ revision, onPurchase }: { revision: numbe
           <div><dt>Total Vast + Pearl cu soldul curent</dt><dd>{amount(vastUsd === null || pearlTotalUsd === null ? null : vastUsd + pearlTotalUsd, "USD")}</dd></div>
         </dl>
         <p>Pearl nevândut include soldul din wallet și soldul Pearl Fortune, inclusiv recompensele în așteptare. Valoarea folosește prețul curent CoinGecko. Capitalul de recuperat din registru folosește încasările efective.</p>
-        <p>Producția Pearl Fortune din ultimele 24 h se alocă după ponderea fiecărui rig în hashrate-ul total raportat. Este o estimare bazată pe hashrate-ul curent.</p>
+        <p>{day?.projected ? "Proiecția Pearl Fortune pe 24 h, la ritmul ultimei ore, se alocă" : "Producția Pearl Fortune din ultimele 24 de ore complete se alocă"} după ponderea fiecărui rig în hashrate-ul total raportat. Este o estimare bazată pe hashrate-ul curent.</p>
         {!hasRates && <p role="status">{missingRates.length ? `Hashrate indisponibil pentru ${missingRates.join(", ")}. Alocarea producției așteaptă citiri de la toate rigurile care minează.` : "Alocarea producției așteaptă telemetrie completă."}</p>}
         <p>Costul folosește consumul GPU curent, plus {Math.round(snapshot.mining.overhead * 100)}% pentru restul sistemului, la {amount(snapshot.mining.tariff, "lei/kWh")}.</p>
         <div className="scroll" tabIndex={0} role="region" aria-label="Venituri și recuperare pe rig">
@@ -118,7 +118,7 @@ export default function PearlRunRate({ revision, onPurchase }: { revision: numbe
             })}</tbody>
           </table>
         </div>
-        <p>Capitalul rămas vine din registru și reflectă încasările alocate și costurile înregistrate. Proiecția folosește venitul Pearl și curentul estimate aici.</p>
+        <p>Capitalul rămas vine din registru și reflectă încasările alocate și costurile înregistrate. Recuperarea folosește venitul Pearl estimat și puterea curentă a fiecărui rig.</p>
       </>}
     </section>
   );

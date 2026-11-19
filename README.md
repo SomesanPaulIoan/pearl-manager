@@ -45,7 +45,7 @@ Pearl Monitor tries that exact command with non-interactive sudo when direct log
 
 ### Mining economics
 
-Profitability values the Pearl Fortune PPS estimates for the last hour and 24 hours at the latest CoinGecko quote, converted into RON using the daily Frankfurter rate. The 7- and 30-day rows project the last 24 hours. Electricity uses the current NVIDIA GPU power readings across configured rigs, plus a 15% allowance for other system components and power supply losses, at 1.10 RON/kWh. A missing rig or GPU power reading leaves electricity cost and profit unavailable. Historical electricity bills and other expenses are outside this estimate.
+Profitability values Pearl Fortune production at the latest CoinGecko quote and Frankfurter USD/RON rate. Until an interval has complete hourly records, it projects the latest rolling hour for 24 hours, 7 days or 30 days, at current GPU power. Complete intervals use stored pool earnings and sampled GPU power from closed hours. Missing power samples leave historical cost and profit unavailable. The same 15% allowance and 1.10 RON/kWh tariff apply to both. Store `data/mining-history.json` with the existing application data to preserve coverage across restarts.
 
 ### Financial ledger
 

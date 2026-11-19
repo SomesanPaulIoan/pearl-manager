@@ -1,3 +1,4 @@
+import { createMiningHistory } from './mining-history.js';
 import { forwardFinance } from './finance/proxy.js';
 import { estimateProfitability } from './profitability.js';
 import { fleetStatus } from './rigs.js';
@@ -101,6 +102,7 @@ async function getPrice(){
   const data={amount:coin.usd,change24h:coin.usd_24h_change??null,quoteUpdatedAt:updatedAt,source:'CoinGecko (Pearl / pearl-2)',url:'https://www.coingecko.com/en/coins/pearl-research',note:'Preț orientativ agregat de piață.'};
   priceCache={fetchedAt:Date.now(),data};return data;
 }
+const miningHistory = createMiningHistory(new URL('./data/', import.meta.url), address, fortuneSummary, fleetStatus);
 async function profitability() {
   const results = await Promise.allSettled([
     fortuneSummary(), getPrice(),
@@ -109,7 +111,7 @@ async function profitability() {
     fleetStatus(),
   ]);
   const [summary, quote, fx, fleet] = results.map(result => result.value);
-  return estimateProfitability({ pps: summary?.pps_income, quote, fx, fleet, tariff: 1.10, overhead: 0.15 });
+  return estimateProfitability({ pps: summary?.pps_income, quote, fx, fleet, tariff: 1.10, overhead: 0.15, history: miningHistory.read() });
 }
 async function status(){const results=await Promise.allSettled([getWallet(),getPrice(),getFortune()]);const data=results.map(x=>x.status==='fulfilled'?{ok:true,...x.value}:{ok:false,error:String(x.reason?.message||'Sursa indisponibilă')});return {address,wallet:data[0],price:data[1],fortune:data[2],updatedAt:new Date().toISOString()};}
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
@@ -136,4 +138,8 @@ if(u.pathname==='/api/chart/price' || u.pathname==='/api/chart/fortune'){
 }
 if(u.pathname==='/api/status'){const body=JSON.stringify(await status());res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'});res.end(body);return;}
 let p=u.pathname==='/'?'/index.html':u.pathname;const full=path.resolve(root,'.'+decodeURIComponent(p));if(!full.startsWith(root+path.sep)){res.writeHead(403);res.end();return;}const b=await fs.readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream','Cache-Control':'no-cache'});res.end(b);
-}catch(e){res.writeHead(e.code==='ENOENT'?404:500);res.end('Not found');}}).listen(PORT,process.env.PEARL_MONITOR_HOST||"127.0.0.1",()=>console.log(`Pearl Monitor listening on port ${PORT}`));
+}catch(e){res.writeHead(e.code==='ENOENT'?404:500);res.end('Not found');}}).listen(PORT,process.env.PEARL_MONITOR_HOST||"127.0.0.1",()=>{
+  console.log(`Pearl Monitor listening on port ${PORT}`);
+  void miningHistory.refresh();
+  setInterval(() => void miningHistory.refresh(), 30_000).unref();
+});
