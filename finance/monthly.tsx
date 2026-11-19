@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 type Cash = { id: string; name: string; vast_ron: string; pearl_ron: string; electricity_ron: string; opex_ron: string };
 type Activity = { minutes: number; metered: number; costRon: number };
 type Month = { activity: Record<string, { name: string; states: Record<string, Activity> }>; hours: number; coveredHours: number; meteredMinutes: number; prl: number | null; kwh: number | null; estimatedCostRon: number | null };
-type Result = { kpis: Cash; by_rig: Cash[]; mining: Month };
+type Result = { kpis: Cash; by_rig: Cash[]; mining: Month; vastAccruedUsd: number | null; vastDays: number };
 
 const format = new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 });
 const label = (value: number | string | null, unit: string) => value === null ? "—" : `${format.format(Number(value))} ${unit}`;
@@ -32,7 +32,10 @@ export default function MonthlyReport({ revision }: { revision: number }) {
       if (!response.ok) throw new Error();
       return response.json();
     }))).then(([ledger, mining]) => {
-      if (!controller.signal.aborted) setResult({ kpis: ledger.kpis, by_rig: ledger.by_rig, mining });
+      if (controller.signal.aborted) return;
+      const days = (ledger.accrued as { day: string; total_usd: string }[]).filter(day => day.day.startsWith(month + "-"));
+      const cents = days.reduce((total, day) => total + Math.round(Number(day.total_usd) * 100), 0);
+      setResult({ kpis: ledger.kpis, by_rig: ledger.by_rig, mining, vastAccruedUsd: days.length ? cents / 100 : null, vastDays: days.length });
     }).catch(() => {
       if (!controller.signal.aborted) setFailed(true);
     });
@@ -47,6 +50,7 @@ export default function MonthlyReport({ revision }: { revision: number }) {
         <dl className="pearl-receipts">
           <div><dt>Producție observată</dt><dd>{label(result.mining.prl, "PRL")}</dd><small>{result.mining.coveredHours}/{result.mining.hours} ore acoperite</small></div>
           <div><dt>Consum din citiri</dt><dd>{label(result.mining.kwh, "kWh")}</dd><small>{label(result.mining.estimatedCostRon, "lei estimați")} · {result.mining.meteredMinutes} min citite</small></div>
+          <div><dt>Vast acumulat</dt><dd>{label(result.vastAccruedUsd, "USD")}</dd><small>{result.vastDays} zile în raport</small></div>
           <div><dt>Facturi curent înregistrate</dt><dd>{label(result.kpis.electricity_ron, "lei")}</dd></div>
           <div><dt>Alte cheltuieli plătite</dt><dd>{label(result.kpis.opex_ron, "lei")}</dd></div>
         </dl>
@@ -82,7 +86,7 @@ export default function MonthlyReport({ revision }: { revision: number }) {
           </div>
           <p>Activitatea Vast cere starea online și o închiriere raportată de Vast. Perioadele mixte și cele incerte sunt afișate separat. Costul folosește doar minutele cu putere citită.</p>
         </>}
-        <p>Raportul include tranzacțiile datate din luna aleasă. Sumele fără dată rămân în registrul general. Consumul din senzori este separat de facturi și acoperă numai minutele colectate.</p>
+        <p>Raportul include tranzacțiile datate din luna aleasă. Sumele fără dată rămân în registrul general. Vast acumulat este totalul portofoliului din raportul zilnic. Consumul din senzori este separat de facturi și acoperă numai minutele colectate.</p>
       </>}
     </details>
   );
