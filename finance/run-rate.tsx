@@ -10,7 +10,9 @@ type Gpu = { mining: string; powerW: number | null };
 type Rig = { name: string; financialRigId?: string; state: string; gpus: Gpu[]; minerHashrateHs?: number };
 type Mining = { periods: { hours: number; prl: number | null; revenueRon: number | null }[]; tariff: number; overhead: number };
 type Receipt = { activity: string; type: string; cash_status: string; currency: string; amount: string; voided: boolean };
-type Snapshot = { ledger: LedgerRig[]; rigs: Rig[]; mining: Mining; receipts: Receipt[] };
+type Balance = { ok: true; amount: number } | { ok: false };
+type PearlStatus = { wallet: Balance; fortune: Balance; price: Balance };
+type Snapshot = { ledger: LedgerRig[]; rigs: Rig[]; mining: Mining; receipts: Receipt[]; pearl: PearlStatus | null };
 
 const format = new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 });
 function amount(value: number | string | null, unit: string) {
@@ -34,12 +36,13 @@ export default function PearlRunRate() {
       busy = true;
       try {
         const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]);
-        const [ledger, fleet, mining, transactions] = await Promise.all([
+        const [ledger, fleet, mining, transactions, pearl] = await Promise.all([
           get("/api/financial/summary", signal), get("/api/rigs", signal),
           get("/api/profitability", signal), get("/api/financial/transactions", signal),
+          get("/api/status", signal).catch(() => null),
         ]);
         if (!controller.signal.aborted) {
-          setSnapshot({ ledger: ledger.by_rig, rigs: fleet.rigs, mining, receipts: transactions.rows });
+          setSnapshot({ ledger: ledger.by_rig, rigs: fleet.rigs, mining, receipts: transactions.rows, pearl });
           setFailed(false);
         }
       } catch {
@@ -61,6 +64,10 @@ export default function PearlRunRate() {
   }
   const vastUsd = receiptsUsd("vast");
   const pearlUsd = receiptsUsd("pearl");
+  const pearl = snapshot?.pearl;
+  const unsoldPrl = pearl?.wallet.ok && pearl.fortune.ok ? pearl.wallet.amount + pearl.fortune.amount : null;
+  const unsoldUsd = unsoldPrl !== null && pearl?.price.ok ? unsoldPrl * pearl.price.amount : null;
+  const pearlTotalUsd = pearlUsd !== null && unsoldUsd !== null ? pearlUsd + unsoldUsd : null;
   const observed = snapshot?.rigs ?? [];
   const miningCount = (rig: Rig) => rig.gpus.filter(gpu => ["container", "process"].includes(gpu.mining)).length;
   const complete = observed.length > 0 && observed.every(rig =>
@@ -78,11 +85,14 @@ export default function PearlRunRate() {
       {failed && <p role="status">Citirea datelor a eșuat. Reîncercăm automat.</p>}
       {!snapshot && !failed && <p role="status">Se citesc registrul și datele Pearl…</p>}
       {snapshot && !failed && <>
-        <dl className="pearl-receipts" aria-label="Încasări recuperate pe sursă">
+        <dl className="pearl-receipts" aria-label="Încasări și valoare Pearl">
           <div><dt>Recuperat din Vast</dt><dd>{amount(vastUsd, "USD")}</dd></div>
-          <div><dt>Recuperat din Pearl</dt><dd>{amount(pearlUsd, "USD")}</dd></div>
-          <div><dt>Total Vast + Pearl</dt><dd>{amount(vastUsd === null || pearlUsd === null ? null : vastUsd + pearlUsd, "USD")}</dd></div>
+          <div><dt>Pearl încasat</dt><dd>{amount(pearlUsd, "USD")}</dd></div>
+          <div><dt>Pearl nevândut</dt><dd>{amount(unsoldUsd, "USD")}</dd><small>{amount(unsoldPrl, "PRL")}</small></div>
+          <div><dt>Total Pearl cu soldul curent</dt><dd>{amount(pearlTotalUsd, "USD")}</dd></div>
+          <div><dt>Total Vast + Pearl cu soldul curent</dt><dd>{amount(vastUsd === null || pearlTotalUsd === null ? null : vastUsd + pearlTotalUsd, "USD")}</dd></div>
         </dl>
+        <p>Pearl nevândut include soldul din wallet și soldul Pearl Fortune, inclusiv recompensele în așteptare. Valoarea folosește prețul curent CoinGecko. Capitalul de recuperat din registru folosește încasările efective.</p>
         <p>Alocăm estimativ producția Pearl Fortune din ultimele 24 h {method}. {hasRates ? "" : "Calculul presupune contribuții egale per GPU."} Costul folosește consumul GPU curent, plus {Math.round(snapshot.mining.overhead * 100)}% pentru restul sistemului, la {amount(snapshot.mining.tariff, "lei/kWh")}.</p>
         <div className="scroll" tabIndex={0} role="region" aria-label="Venituri și recuperare pe rig">
           <table><thead><tr>{["Rig", "Capital net", "De recuperat", "PRL/zi", "Venit/zi", "Curent/zi", "Net/zi", "Recuperare la ritmul actual"].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
