@@ -5,6 +5,7 @@ const refresh = document.querySelector('#refresh');
 const format = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 });
 const time = new Intl.DateTimeFormat('ro-RO', { dateStyle: 'short', timeStyle: 'medium' });
 const amount = (value, unit) => value === null ? '—' : `${format.format(value)} ${unit}`;
+const formatHashrate = value => value >= 1e15 ? amount(value / 1e15, 'PH/s') : amount(value / 1e12, 'TH/s');
 const miningLabel = {
   container: 'Pearl · container',
   process: 'Pearl · proces detectat',
@@ -26,6 +27,10 @@ function renderRig(rig) {
   const timestamp = rig.sampledAt ? ` · ${time.format(new Date(rig.sampledAt))}` : '';
   panel.append(element('p', state[rig.state] + timestamp, rig.state === 'online' ? 'detail' : 'detail warn'));
   if (!rig.gpus.length) return panel;
+  const reportedHashrate = rig.minerHashrateHs == null
+    ? 'Indisponibil'
+    : `${formatHashrate(rig.minerHashrateHs)} · raportat de miner`;
+  panel.append(element('p', `Hashrate local · ${reportedHashrate}`, 'detail'));
 
   const scroll = element('div', '', 'table-scroll');
   scroll.tabIndex = 0;
@@ -68,6 +73,7 @@ async function update() {
     const online = data.rigs.filter(rig => rig.state === 'online');
     const gpus = online.flatMap(rig => rig.gpus);
     const mining = gpus.filter(gpu => gpu.mining === 'container' || gpu.mining === 'process').length;
+    const reported = online.map(rig => rig.minerHashrateHs).filter(value => value != null);
     const temperatures = gpus.map(gpu => gpu.temperatureC).filter(value => value !== null);
     const powers = gpus.map(gpu => gpu.powerW).filter(value => value !== null);
     const watts = powers.reduce((total, value) => total + value, 0);
@@ -75,6 +81,8 @@ async function update() {
       [`${online.length} / ${data.rigs.length}`, 'Riguri online'],
       [String(gpus.length), 'GPU observate live'],
       [String(mining), 'GPU cu miner Pearl detectat'],
+      [reported.length ? formatHashrate(reported.reduce((sum, value) => sum + value, 0)) : '—',
+        `Hashrate local raportat · ${reported.length}/${data.rigs.length} riguri`],
       [amount(temperatures.length ? Math.max(...temperatures) : null, '°C'), 'Temperatură maximă'],
       [amount(powers.length ? watts / 1000 : null, 'kW'), `Putere GPU măsurată · ${powers.length}/${gpus.length} plăci`],
     ] : [];

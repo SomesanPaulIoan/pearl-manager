@@ -11,6 +11,9 @@ if LC_ALL=C nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name --format=c
 fi
 if pids=$(docker top pearl-miner -eo pid 2>/dev/null); then
   printf '\\n--container--\\n%s\\n' "$pids"
+  printf '\\n--hashrate--\\n'
+  docker logs --since 90s --tail 300 pearl-miner 2>&1 |
+    grep ' event=large.progress ' | tail -n 1
 fi`;
 
 const number = text => text && /^-?\d+(?:\.\d+)?$/.test(text) ? Number(text) : null;
@@ -18,11 +21,12 @@ const rows = text => text.trim().split(/\r?\n/).filter(Boolean).map(line => line
 
 function parseProbe(stdout) {
   const [inventory, rest = ''] = stdout.split('--compute--');
-  const [processes, container = ''] = rest.split('--container--');
+  const [processes, miner = ''] = rest.split('--container--');
+  const [container, progress = ''] = miner.split('--hashrate--');
   const computeAvailable = processes.includes('--compute-ok--');
   const containerPids = new Set(container.trim().split(/\s+/).filter(pid => /^\d+$/.test(pid)));
   const computeRows = rows(processes.split('--compute-ok--')[0]);
-  return rows(inventory).map(([index, uuid, name, temp, load, used, total, power, limit, fan, gen, lanes]) => {
+  const gpus = rows(inventory).map(([index, uuid, name, temp, load, used, total, power, limit, fan, gen, lanes]) => {
     const gpuProcesses = computeRows.filter(([gpu]) => gpu === uuid);
     const confirmed = gpuProcesses.some(([, pid]) => containerPids.has(pid));
     const detected = gpuProcesses.some(([, , command]) => /^miner-cuda(?:\d+(?:\.\d+)*)?$/.test(command?.split('/').at(-1) ?? ''));
@@ -34,6 +38,12 @@ function parseProbe(stdout) {
       pcieLanes: number(lanes), mining,
     };
   }).filter(gpu => gpu.index !== null && gpu.name);
+  const match = progress.match(/\bproof_per_sec="(\d+(?:\.\d+)?)\s*([kMGTPE]?)\/s"/);
+  const multiplier = { '': 1, k: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15, E: 1e18 };
+  const minerHashrateHs = match && gpus.some(gpu => gpu.mining === 'container')
+    ? Number(match[1]) * multiplier[match[2]]
+    : null;
+  return { gpus, minerHashrateHs };
 }
 
 async function readRig(rig, identityFile, previous) {
@@ -47,9 +57,9 @@ async function readRig(rig, identityFile, previous) {
     const { stdout } = await exec(target ? '/usr/bin/ssh' : '/bin/sh', args, {
       timeout: 12_000, maxBuffer: 128 * 1024,
     });
-    const gpus = parseProbe(stdout);
+    const { gpus, minerHashrateHs } = parseProbe(stdout);
     if (!gpus.length) throw new Error('No GPU data');
-    return { name: rig.name, state: 'online', sampledAt: new Date().toISOString(), gpus };
+    return { name: rig.name, state: 'online', sampledAt: new Date().toISOString(), gpus, minerHashrateHs };
   } catch {
     return previous?.sampledAt
       ? { ...previous, state: 'stale' }
