@@ -1,5 +1,5 @@
-const CACHE = 'pearl-monitor-shell-v12';
-const shell = ['/', '/rigs.html', '/navigation.css', '/rigs.css', '/rigs-ui.js', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'pearl-monitor-shell-v13';
+const shell = ['/', '/rigs.html', '/navigation.css', '/profitability.css', '/profitability.js', '/rigs.css', '/rigs-ui.js', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(shell)).then(() => self.skipWaiting()));

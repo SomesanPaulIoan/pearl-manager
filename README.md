@@ -42,3 +42,7 @@ rigmonitor ALL=(root) NOPASSWD: /usr/bin/docker logs --since 90s --tail 300 pear
 ```
 
 Pearl Monitor tries that exact command with non-interactive sudo when direct log access fails.
+
+### Mining economics
+
+Profitability values the Pearl Fortune PPS estimates for the last hour and 24 hours at the latest CoinGecko quote, converted into RON using the daily Frankfurter rate. The 7- and 30-day rows project the last 24 hours. Electricity uses the current NVIDIA GPU power readings across configured rigs, plus a 15% allowance for other system components and power supply losses, at 1.10 RON/kWh. A missing rig or GPU power reading leaves electricity cost and profit unavailable. Historical electricity bills and other expenses are outside this estimate.

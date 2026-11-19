@@ -1,3 +1,4 @@
+import { estimateProfitability } from './profitability.js';
 import { fleetStatus } from './rigs.js';
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -72,17 +73,21 @@ async function priceHistory(){return historyCached('price24h',300000,async()=>{
  if(points.length<2)throw Error('Prea puține puncte pentru grafic');
  return {points,source:'CoinGecko',updatedAt:new Date().toISOString()};
 });}
-async function fortuneHistory(){return historyCached('fortune24h',60000,async()=>{
+async function fortuneSummary(){return historyCached('fortune24h',60000,async()=>{
  const url=`https://pearlfortune.org/api/v1/miners/${address}?hours=24&tz_offset_min=180`;
  const json=await (await safeFetch(url,12000)).json();
- const series=json?.data?.hourly_shares?.series;
+ return json?.data?.hourly_shares;
+});}
+async function fortuneHistory(){
+ const summary=await fortuneSummary();
+ const series=summary?.series;
  if(!Array.isArray(series))throw Error('Fortune nu a returnat data.hourly_shares.series');
  const points=series.map(row=>[Number(row.hour)*1000, Number(row?.share_statistics?.effective_hashrate)/1e15])
    .filter(([t,v])=>Number.isFinite(t)&&Number.isFinite(v)&&v>=0).sort((a,b)=>a[0]-b[0]);
  if(points.length<2)throw Error('Istoric hashrate insuficient');
- const rolling=Array.isArray(json?.data?.hourly_shares?.rolling_hashrates)?json.data.hourly_shares.rolling_hashrates.map(x=>({hours:x.hours,phs:Number(x.hashrate)/1e15})):[];
+ const rolling=Array.isArray(summary?.rolling_hashrates)?summary.rolling_hashrates.map(x=>({hours:x.hours,phs:Number(x.hashrate)/1e15})):[];
  return {points,rolling,source:'Pearl Fortune · hashrate personal',updatedAt:new Date().toISOString()};
-});}
+}
 let priceCache=null;
 async function getPrice(){
   if(priceCache && Date.now()-priceCache.fetchedAt<300000)return priceCache.data;
@@ -94,6 +99,16 @@ async function getPrice(){
   if(updatedAt && Date.now()-Date.parse(updatedAt)>900000)throw Error('Cotația CoinGecko este mai veche de 15 minute');
   const data={amount:coin.usd,change24h:coin.usd_24h_change??null,quoteUpdatedAt:updatedAt,source:'CoinGecko (Pearl / pearl-2)',url:'https://www.coingecko.com/en/coins/pearl-research',note:'Preț orientativ agregat de piață.'};
   priceCache={fetchedAt:Date.now(),data};return data;
+}
+async function profitability() {
+  const results = await Promise.allSettled([
+    fortuneSummary(), getPrice(),
+    historyCached('usdRon', 3600000, async () =>
+      (await safeFetch('https://api.frankfurter.dev/v1/latest?base=USD&symbols=RON')).json()),
+    fleetStatus(),
+  ]);
+  const [summary, quote, fx, fleet] = results.map(result => result.value);
+  return estimateProfitability({ pps: summary?.pps_income, quote, fx, fleet, tariff: 1.10, overhead: 0.15 });
 }
 async function status(){const results=await Promise.allSettled([getWallet(),getPrice(),getFortune()]);const data=results.map(x=>x.status==='fulfilled'?{ok:true,...x.value}:{ok:false,error:String(x.reason?.message||'Sursa indisponibilă')});return {address,wallet:data[0],price:data[1],fortune:data[2],updatedAt:new Date().toISOString()};}
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
@@ -111,6 +126,7 @@ http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost
  }
  sendJson(res,405,{error:'Metodă nepermisă'});return;
 }
+if(u.pathname==='/api/profitability' && req.method==='GET'){sendJson(res,200,await profitability());return;}
 if(u.pathname==='/api/rigs' && req.method==='GET'){sendJson(res,200,await fleetStatus());return;}
 if(u.pathname==='/api/chart/price' || u.pathname==='/api/chart/fortune'){
  try {sendJson(res,200,await (u.pathname.endsWith('/price')?priceHistory():fortuneHistory()));}
