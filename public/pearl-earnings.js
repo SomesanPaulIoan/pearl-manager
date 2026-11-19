@@ -6,10 +6,11 @@ const status = card.querySelector('[role="status"]');
 const total = card.querySelector('#earnings-total');
 const rows = card.querySelector('tbody');
 const table = card.querySelector('details');
+const allocation = card.querySelector('#earnings-allocation');
 const number = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 });
 const dayLabel = new Intl.DateTimeFormat('ro-RO', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const value = amount => number.format(amount) + ' PRL';
-const coverage = day => day.complete ? '24 h' : `${day.coveredHours}/24 h complete${day.partialHours ? ' · ' + day.partialHours + ' h parțiale' : ''}`;
+const coverage = day => day.source === 'ledger' ? 'Credite PPS' : day.complete ? '24 h' : `${day.coveredHours}/24 h complete${day.partialHours ? ' · ' + day.partialHours + ' h parțiale' : ''}`;
 const labelDate = date => dayLabel.format(new Date(date + 'T00:00:00Z'));
 const NS = 'http://www.w3.org/2000/svg';
 let current;
@@ -95,12 +96,15 @@ function render(data) {
     ? `${labelDate(data.points[0].date)} – ${labelDate(data.points.at(-1).date)} UTC · ${complete} din ${data.points.length} zile complete`
     : 'Pearl Fortune încă nu a furnizat citiri pentru acest interval.';
   table.hidden = !logged.length;
+  allocation.hidden = !data.points.some(day => day.source === 'ledger');
+  if (!allocation.hidden) allocation.textContent = `USD alocați estimează distribuția celor ${number.format(data.ledgerSalesUsd)} USD încasați din vânzări, ponderând PRL creditați cu prețul mediu zilnic CoinGecko. Sumele pe zi sunt estimări.`;
   rows.replaceChildren(...data.points.slice().reverse().map(day => {
     const row = document.createElement('tr');
-    for (const text of [labelDate(day.date), day.prl === null ? '—' : value(day.prl),
-      day.prl === null ? 'Fără date' : coverage(day)]) {
-      row.insertCell().textContent = text;
-    }
+    const cells = [labelDate(day.date), day.prl === null ? '—' : value(day.prl),
+      day.allocatedUsd == null ? '—' : number.format(day.allocatedUsd),
+      day.prl === null ? 'Fără date' : coverage(day)];
+    for (const text of cells) row.insertCell().textContent = text;
+    if (day.averageUsd != null) row.cells[2].title = 'Preț mediu: ' + day.averageUsd.toFixed(4) + ' USD/PRL';
     return row;
   }));
   draw();

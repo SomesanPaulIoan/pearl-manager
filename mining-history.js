@@ -112,15 +112,25 @@ export function recordPearlRewards(history, summary, now = Date.now()) {
   rewards.updatedAt = Math.max(rewards.updatedAt ?? 0, pool.pps.read_at_ms);
 }
 
-export function dailyPearlRewards(history, days, now = Date.now()) {
+export function dailyPearlRewards(history, days, now = Date.now(), ledger) {
   const rewards = history?.pearlRewards;
   const closed = {...Object.fromEntries(Object.entries(history?.hours ?? {}).filter(([, bucket]) => Number.isFinite(bucket.prl)).map(([hour, bucket]) => [hour, bucket.prl])), ...rewards?.closed};
   const today = Math.floor(now / (24 * HOUR_MS));
   const firstHour = Math.min(...Object.keys(closed).map(Number), ...Object.keys(rewards?.incomplete ?? {}).map(Number), rewards?.partial?.hour ?? Infinity);
-  const first = Math.max(today - days + 1, Math.floor(firstHour / 24));
+  const credited = ledger?.days ?? {};
+  const firstLedgerDay = Math.min(...Object.keys(credited).map(day => Date.parse(day + 'T00:00:00Z') / (24 * HOUR_MS)));
+  const first = Math.max(today - days + 1, Math.min(Math.floor(firstHour / 24), firstLedgerDay));
   const points = [];
   let cumulativePrl = 0;
   for (let day = first; day <= today; day++) {
+    const date = new Date(day * 24 * HOUR_MS).toISOString().slice(0, 10);
+    const ledgerDay = credited[date];
+    if (ledgerDay) {
+      cumulativePrl += ledgerDay.prl;
+      points.push({ date, ...ledgerDay, coveredHours: 24, partialHours: 0,
+        complete: true, source: 'ledger', cumulativePrl });
+      continue;
+    }
     let prl = 0;
     let coveredHours = 0;
     let partialHours = 0;
@@ -141,12 +151,12 @@ export function dailyPearlRewards(history, days, now = Date.now()) {
     }
     cumulativePrl += prl;
     points.push({
-      date: new Date(day * 24 * HOUR_MS).toISOString().slice(0, 10),
+      date,
       prl: coveredHours || partialHours ? prl : null, coveredHours, partialHours,
       complete: coveredHours === 24 && day < today, cumulativePrl,
     });
   }
-  return { points, cumulativePrl, timezone: 'UTC',
+  return { points, cumulativePrl, ledgerSalesUsd: ledger?.salesUsd ?? null, timezone: 'UTC',
     updatedAt: rewards?.updatedAt ? new Date(rewards.updatedAt).toISOString() : null };
 }
 

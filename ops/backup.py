@@ -48,7 +48,7 @@ def main():
             source = args.ledger.parent / item
             if source.is_dir():
                 shutil.copytree(source, ledger.parent / item)
-        for item in ('sales.json', 'mining-history.json'):
+        for item in ('sales.json', 'mining-history.json', 'pearl-credited-days.json'):
             source = args.app / 'data' / item
             if source.is_file():
                 dest = stage / 'app-data' / item

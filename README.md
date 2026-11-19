@@ -64,3 +64,5 @@ Set the optional `financialRigId` on each monitored rig to link it to the ledger
 ### Daily Pearl earnings
 
 The rewards chart groups Pearl Fortune PPS hourly rewards into UTC dates and shows actual observations and their cumulative sum. A scheduled 360-hour backfill recovers the window the public endpoint supports. The application retains verified hours locally and distinguishes partial observations, confirmed zeroes and unknown gaps. Historical chart backfill is separate from the current-run profitability coverage.
+
+A verified historical PPS ledger can be supplied as `data/pearl-credited-days.json`. Those dates use the confirmed credit totals by UTC mining window in the earnings chart. Optionally, the archive includes daily average prices and an attributed USD sales estimate. The attribution weights confirmed PRL by their daily average price and reconciles to the total sales supplied for the period, separate from the actual sale dates in the ledger.

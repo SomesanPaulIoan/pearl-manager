@@ -148,6 +148,14 @@ async function profitability() {
   return estimateProfitability({ pps: summary?.pps_income, quote, fx, fleet, tariff: 1.10, overhead: 0.15, history: miningHistory.read() });
 }
 async function status(){const results=await Promise.allSettled([getWallet(),getPrice(),getFortune()]);const data=results.map(x=>x.status==='fulfilled'?{ok:true,...x.value}:{ok:false,error:String(x.reason?.message||'Sursa indisponibilă')});return {address,wallet:data[0],price:data[1],fortune:data[2],updatedAt:new Date().toISOString()};}
+async function readCreditedDays() {
+ try {
+   return JSON.parse(await fs.readFile(new URL('./data/pearl-credited-days.json', import.meta.url), 'utf8'));
+ } catch (error) {
+   if (error.code === 'ENOENT') return undefined;
+   throw error;
+ }
+}
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
 http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost');
 if(configuredOrigin && req.headers.host!==configuredOrigin.host)
@@ -178,7 +186,7 @@ if(u.pathname==='/api/profitability' && req.method==='GET'){sendJson(res,200,awa
 if(u.pathname==='/api/mining/daily' && req.method==='GET'){
  const days=Number(u.searchParams.get('days')??30);
  if(![7,30,90,365].includes(days))return sendJson(res,400,{error:'Interval invalid.'});
- return sendJson(res,200,dailyPearlRewards(miningHistory.read(),days));
+ return sendJson(res,200,dailyPearlRewards(miningHistory.read(),days,Date.now(),await readCreditedDays()));
 }
 if(u.pathname==='/api/mining/monthly' && req.method==='GET'){
  const month=u.searchParams.get('month')??'';

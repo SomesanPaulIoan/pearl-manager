@@ -81,3 +81,14 @@ test('PPS archive keeps verified zeroes, gaps and current-hour partial rewards d
   assert.equal(monthlyMining(history, '2026-11', 0, 1, n).prl, 5);
   assert.equal(dailyPearlRewards(history, 7, n + 3600000).points.at(-1).prl, null);
 });
+
+test('credited ledger days supersede chart estimates without discarding later live rewards', () => {
+  const n = Date.UTC(2026, 10, 19, 2);
+  const hour = n / 3600000;
+  const result = dailyPearlRewards({hours: {[hour-1]: {prl: 1}, [hour-24]: {prl: 2}}},
+    7, n, {salesUsd: 10, days: {'2026-11-18': {prl: 7, allocatedUsd: 10, averageUsd: 2}}});
+  assert.deepEqual(result.points.map(day => day.prl), [7, 1]);
+  assert.equal(result.points[0].source, 'ledger');
+  assert.equal(result.points[0].allocatedUsd, 10);
+  assert.equal(result.cumulativePrl, 8);
+});
