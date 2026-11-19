@@ -1,4 +1,4 @@
-const CACHE = 'pearl-monitor-shell-v13';
+const CACHE = 'pearl-monitor-shell-v14';
 const shell = ['/', '/rigs.html', '/navigation.css', '/profitability.css', '/profitability.js', '/rigs.css', '/rigs-ui.js', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', event => {

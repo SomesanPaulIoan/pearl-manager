@@ -62,11 +62,11 @@ async function readRig(rig, identityFile, previous) {
     });
     const { gpus, minerHashrateHs } = parseProbe(stdout);
     if (!gpus.length) throw new Error('No GPU data');
-    return { name: rig.name, state: 'online', sampledAt: new Date().toISOString(), gpus, minerHashrateHs };
+    return { name: rig.name, financialRigId: rig.financialRigId, state: 'online', sampledAt: new Date().toISOString(), gpus, minerHashrateHs };
   } catch {
     return previous?.sampledAt
       ? { ...previous, state: 'stale' }
-      : { name: rig.name, state: 'unavailable', sampledAt: null, gpus: [] };
+      : { name: rig.name, financialRigId: rig.financialRigId, state: 'unavailable', sampledAt: null, gpus: [] };
   }
 }
 

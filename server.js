@@ -1,3 +1,4 @@
+import { forwardFinance } from './finance/proxy.js';
 import { estimateProfitability } from './profitability.js';
 import { fleetStatus } from './rigs.js';
 import http from 'node:http';
@@ -126,6 +127,7 @@ http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost
  }
  sendJson(res,405,{error:'Metodă nepermisă'});return;
 }
+if(u.pathname.startsWith('/api/financial/')){forwardFinance(req,res,u,sendJson);return;}
 if(u.pathname==='/api/profitability' && req.method==='GET'){sendJson(res,200,await profitability());return;}
 if(u.pathname==='/api/rigs' && req.method==='GET'){sendJson(res,200,await fleetStatus());return;}
 if(u.pathname==='/api/chart/price' || u.pathname==='/api/chart/fortune'){

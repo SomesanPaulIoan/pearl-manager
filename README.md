@@ -46,3 +46,9 @@ Pearl Monitor tries that exact command with non-interactive sudo when direct log
 ### Mining economics
 
 Profitability values the Pearl Fortune PPS estimates for the last hour and 24 hours at the latest CoinGecko quote, converted into RON using the daily Frankfurter rate. The 7- and 30-day rows project the last 24 hours. Electricity uses the current NVIDIA GPU power readings across configured rigs, plus a 15% allowance for other system components and power supply losses, at 1.10 RON/kWh. A missing rig or GPU power reading leaves electricity cost and profit unavailable. Historical electricity bills and other expenses are outside this estimate.
+
+### Financial ledger
+
+The optional Finance page mounts GPU Control Center’s financial editor and works against its existing SQLite ledger, preserving transaction allocations, audit and reconciliation. Build the page with `finance/build.sh /path/to/gpu-control-center /path/to/app/public/finance` using the GPU Control Center frontend dependencies. Run `finance/backend.py` as a separate loopback service with GPU Control Center and its Python dependencies on `PYTHONPATH`. Configure `PEARL_FINANCE_DATABASE` in the backend and matching `PEARL_FINANCE_PORT` and `PEARL_FINANCE_TOKEN` in both services. Set `PEARL_FINANCE_ORIGIN` in Pearl Monitor to the private browser origin. Keep the database and credentials outside the public document root.
+
+Set the optional `financialRigId` on each monitored rig to link it to the ledger independently of name changes. Pearl’s daily effective production is allocated by the observed local hashrate if all mining rigs report it, or by the number of GPUs observed running the miner otherwise. The recovery estimate uses remaining ledger capital divided by estimated positive net daily Pearl income at the current price and measured GPU power.
