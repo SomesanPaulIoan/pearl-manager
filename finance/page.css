@@ -6,3 +6,7 @@
 .pearl-run-rate table { width: 100%; border-collapse: collapse; text-align: right; }
 .pearl-run-rate th, .pearl-run-rate td { padding: 11px; border-top: 1px solid var(--line); white-space: nowrap; }
 .pearl-run-rate th:first-child { text-align: left; }
+.pearl-receipts { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 10px; }
+.pearl-receipts div { background: #0b1017; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.pearl-receipts dt { color: var(--muted); }
+.pearl-receipts dd { margin: 5px 0 0; font-size: 19px; font-weight: 700; }
