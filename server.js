@@ -1,5 +1,5 @@
 import { readAlerts } from './rig-alerts.js';
-import { createMiningHistory, monthlyMining } from './mining-history.js';
+import { createMiningHistory, dailyPearlRewards, monthlyMining } from './mining-history.js';
 import { forwardFinance } from './finance/proxy.js';
 import { estimateProfitability } from './profitability.js';
 import { fleetStatus } from './rigs.js';
@@ -97,6 +97,11 @@ async function fortuneSummary(){return historyCached('fortune24h',60000,async()=
  const json=await (await safeFetch(url,12000)).json();
  return json?.data?.hourly_shares;
 });}
+async function fortuneRewardArchive(){
+ const url=`https://pearlfortune.org/api/v1/miners/${address}?hours=360&tz_offset_min=0`;
+ const json=await (await safeFetch(url,8000)).json();
+ return json?.data?.hourly_shares;
+}
 async function fortuneHistory(){
  const summary=await fortuneSummary();
  const series=summary?.series;
@@ -131,7 +136,7 @@ function vastActivity() {
   }
   return currentVastActivity?.value ?? {};
 }
-const miningHistory = createMiningHistory(new URL('./data/', import.meta.url), address, fortuneSummary, fleetStatus, vastActivity);
+const miningHistory = createMiningHistory(new URL('./data/', import.meta.url), address, fortuneSummary, fleetStatus, vastActivity, fortuneRewardArchive);
 async function profitability() {
   const results = await Promise.allSettled([
     fortuneSummary(), getPrice(),
@@ -170,6 +175,11 @@ if(u.pathname==='/api/sales'){
 }
 if(u.pathname.startsWith('/api/financial/')){forwardFinance(req,res,u,sendJson);return;}
 if(u.pathname==='/api/profitability' && req.method==='GET'){sendJson(res,200,await profitability());return;}
+if(u.pathname==='/api/mining/daily' && req.method==='GET'){
+ const days=Number(u.searchParams.get('days')??30);
+ if(![7,30,90,365].includes(days))return sendJson(res,400,{error:'Interval invalid.'});
+ return sendJson(res,200,dailyPearlRewards(miningHistory.read(),days));
+}
 if(u.pathname==='/api/mining/monthly' && req.method==='GET'){
  const month=u.searchParams.get('month')??'';
  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))return sendJson(res,400,{error:'Lună invalidă.'});

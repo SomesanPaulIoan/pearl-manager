@@ -51,7 +51,7 @@ export function historyTotals(history, hours, now) {
   };
 }
 
-export function recordHistory(history, summary, fleet, now = Date.now(), vast = {}) {
+function poolHours(summary, now) {
   const currentHour = Math.floor(now / HOUR_MS);
   const pps = summary?.pps_income;
   if (Number.isFinite(pps?.read_at_ms) && Math.abs(now - pps.read_at_ms) <= 15 * MINUTE_MS &&
@@ -61,6 +61,100 @@ export function recordHistory(history, summary, fleet, now = Date.now(), vast = 
       row.share_statistics?.complete === true && row.share_statistics.observed_ms === HOUR_MS &&
       row.share_statistics.from === row.hour && row.share_statistics.to === row.hour + 3600 &&
       row.share_statistics.to * 1000 <= pps.read_at_ms);
+    return { pps, income, fullHours };
+  }
+  return null;
+}
+
+function rewardForHour(row, income) {
+  const amount = income.get(row.hour);
+  const noShares = row.share_statistics.accepted_count === '0' && row.share_statistics.credited_work_count === '0' &&
+    row.share_statistics.dropped_events === '0';
+  return amount ?? (!income.has(row.hour) && noShares ? 0 : null);
+}
+
+export function recordPearlRewards(history, summary, now = Date.now()) {
+  const pool = poolHours(summary, now);
+  if (!pool) return;
+  const rewards = history.pearlRewards ??= { closed: {} };
+  const incomplete = rewards.incomplete ??= {};
+  const currentHour = Math.floor(now / HOUR_MS);
+  for (const row of pool.fullHours) {
+    const hour = row.hour / 3600;
+    const prl = rewardForHour(row, pool.income);
+    if (prl !== null && hour >= currentHour - REPORT_HOURS) {
+      rewards.closed[hour] = prl;
+      delete incomplete[hour];
+    }
+  }
+  for (const row of summary.series) {
+    const hour = row.hour / 3600;
+    const stats = row.share_statistics;
+    const prl = pool.income.get(row.hour);
+    if (Number.isInteger(hour) && hour < currentHour && hour >= currentHour - REPORT_HOURS &&
+        rewards.closed[hour] === undefined && prl != null && stats?.observed_ms > 0 &&
+        stats.from === row.hour && stats.to * 1000 <= pool.pps.read_at_ms) {
+      incomplete[hour] = prl;
+    }
+  }
+  const partial = summary.series.find(row => row.hour === currentHour * 3600 &&
+    row.share_statistics?.complete === true && row.share_statistics.observed_ms > 0 &&
+    row.share_statistics.from === row.hour && row.share_statistics.to * 1000 <= pool.pps.read_at_ms);
+  const amount = partial ? rewardForHour(partial, pool.income) : null;
+  if (amount !== null && (!rewards.partial || rewards.partial.at <= pool.pps.read_at_ms)) {
+    rewards.partial = { hour: currentHour, prl: amount, at: pool.pps.read_at_ms };
+  }
+  for (const values of [rewards.closed, incomplete]) {
+    for (const hour of Object.keys(values)) {
+      if (Number(hour) < currentHour - REPORT_HOURS) delete values[hour];
+    }
+  }
+  rewards.updatedAt = Math.max(rewards.updatedAt ?? 0, pool.pps.read_at_ms);
+}
+
+export function dailyPearlRewards(history, days, now = Date.now()) {
+  const rewards = history?.pearlRewards;
+  const closed = {...Object.fromEntries(Object.entries(history?.hours ?? {}).filter(([, bucket]) => Number.isFinite(bucket.prl)).map(([hour, bucket]) => [hour, bucket.prl])), ...rewards?.closed};
+  const today = Math.floor(now / (24 * HOUR_MS));
+  const firstHour = Math.min(...Object.keys(closed).map(Number), ...Object.keys(rewards?.incomplete ?? {}).map(Number), rewards?.partial?.hour ?? Infinity);
+  const first = Math.max(today - days + 1, Math.floor(firstHour / 24));
+  const points = [];
+  let cumulativePrl = 0;
+  for (let day = first; day <= today; day++) {
+    let prl = 0;
+    let coveredHours = 0;
+    let partialHours = 0;
+    for (let hour = day * 24; hour < (day + 1) * 24; hour++) {
+      if (Number.isFinite(closed[hour])) {
+        coveredHours++;
+        prl += closed[hour];
+      } else if (Number.isFinite(rewards?.incomplete?.[hour])) {
+        partialHours++;
+        prl += rewards.incomplete[hour];
+      }
+    }
+    const partial = rewards?.partial;
+    const hasPartial = day === today && partial?.hour === Math.floor(now / HOUR_MS);
+    if (hasPartial && closed[partial.hour] === undefined && rewards.incomplete?.[partial.hour] === undefined) {
+      partialHours++;
+      prl += partial.prl;
+    }
+    cumulativePrl += prl;
+    points.push({
+      date: new Date(day * 24 * HOUR_MS).toISOString().slice(0, 10),
+      prl: coveredHours || partialHours ? prl : null, coveredHours, partialHours,
+      complete: coveredHours === 24 && day < today, cumulativePrl,
+    });
+  }
+  return { points, cumulativePrl, timezone: 'UTC',
+    updatedAt: rewards?.updatedAt ? new Date(rewards.updatedAt).toISOString() : null };
+}
+
+export function recordHistory(history, summary, fleet, now = Date.now(), vast = {}) {
+  const currentHour = Math.floor(now / HOUR_MS);
+  const pool = poolHours(summary, now);
+  if (pool) {
+    const { income, fullHours } = pool;
     if (!Number.isInteger(history.startedHour)) {
       // Anchor to the current mining run, excluding older production before the last inactive hour.
       const ordered = [...summary.series].sort((a, b) => b.hour - a.hour);
@@ -76,12 +170,10 @@ export function recordHistory(history, summary, fleet, now = Date.now(), vast = 
     for (const row of fullHours) {
       const hour = row.hour / 3600;
       if (!Number.isInteger(history.startedHour) || hour < history.startedHour || hour < currentHour - HISTORY_HOURS) continue;
-      const amount = income.get(row.hour);
-      const zeroShares = row.share_statistics.accepted_count === '0' && row.share_statistics.credited_work_count === '0' &&
-        row.share_statistics.dropped_events === '0';
-      if (amount != null || (!income.has(row.hour) && zeroShares)) {
+      const prl = rewardForHour(row, income);
+      if (prl !== null) {
         const bucket = history.hours[hour] ??= {};
-        bucket.prl = amount ?? 0;
+        bucket.prl = prl;
       }
     }
   }
@@ -150,6 +242,7 @@ export function monthlyMining(history, month, overhead, tariff, now = Date.now()
   const end = Math.min(next.valueOf(), now) / HOUR_MS;
   let prl = 0;
   let coveredHours = 0;
+  let partialHours = 0;
   let meteredMinutes = 0;
   let gpuKwh = 0;
   const activity = {};
@@ -164,9 +257,13 @@ export function monthlyMining(history, month, overhead, tariff, now = Date.now()
         current.costRon += data.gpuKwh * (1 + overhead) * tariff;
       }
     }
-    if (Number.isFinite(bucket?.prl)) {
+    const reward = history?.pearlRewards?.closed?.[hour] ?? bucket?.prl;
+    if (Number.isFinite(reward)) {
       coveredHours++;
-      prl += bucket.prl;
+      prl += reward;
+    } else if (Number.isFinite(history?.pearlRewards?.incomplete?.[hour])) {
+      partialHours++;
+      prl += history.pearlRewards.incomplete[hour];
     }
     if (bucket?.minutes) {
       const samples = Object.values(bucket.minutes);
@@ -179,13 +276,14 @@ export function monthlyMining(history, month, overhead, tariff, now = Date.now()
   }
   const kwh = meteredMinutes ? gpuKwh * (1 + overhead) : null;
   return { month, hours: Math.max(0, Math.floor(end) - begin), coveredHours, meteredMinutes,
-    prl: coveredHours ? prl : null, kwh, activity, estimatedCostRon: kwh === null ? null : kwh * tariff };
+    prl: coveredHours || partialHours ? prl : null, kwh, activity, estimatedCostRon: kwh === null ? null : kwh * tariff };
 }
 
-export function createMiningHistory(directory, wallet, getSummary, getFleet, getVast = () => ({})) {
+export function createMiningHistory(directory, wallet, getSummary, getFleet, getVast = () => ({}), getRewardHistory) {
   const filename = new URL('mining-history.json', directory);
   let history;
   let pending;
+  let lastArchiveAttempt = 0;
   async function collect() {
     if (!history) {
       try {
@@ -197,7 +295,24 @@ export function createMiningHistory(directory, wallet, getSummary, getFleet, get
       }
     }
     const [pool, fleet] = await Promise.allSettled([getSummary(), getFleet()]);
+    const archive = getRewardHistory && (history.pearlRewards?.archiveVersion !== 2 || Date.now() - history.pearlRewards.backfilledAt >= 3_600_000);
+    if (archive && Date.now() - lastArchiveAttempt >= 300_000) {
+      lastArchiveAttempt = Date.now();
+      try {
+        const backfill = await getRewardHistory();
+        if (backfill?.hours === 360) {
+          recordPearlRewards(history, backfill);
+          if (history.pearlRewards) {
+            history.pearlRewards.backfilledAt = Date.now();
+            history.pearlRewards.archiveVersion = 2;
+          }
+        }
+      } catch {
+        // Keep the live collector and previously observed rewards available.
+      }
+    }
     const now = Date.now();
+    recordPearlRewards(history, pool.value, now);
     recordHistory(history, pool.value, fleet.value, now, getVast());
     recordAlerts(history, fleet.value, now);
     await mkdir(directory, { recursive: true, mode: 0o700 });

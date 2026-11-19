@@ -60,3 +60,7 @@ Set the optional `financialRigId` on each monitored rig to link it to the ledger
 - The rig page shows incidents after three consecutive samples and recovery after two. Alerts cover telemetry, heat, detected miners and a drop against recent hashrate. No outbound notification is enabled.
 - `ops/backup.py` takes a consistent SQLite snapshot and verifies the extracted database and file hashes. Run it via a persistent daily systemd timer. The optional `--remote`, `--identity` and `--passphrase` flags copy an encrypted, checksum-verified backup to a trusted SSH host. Keep a recovery key separately. Restore into a private staging directory and run `PRAGMA quick_check` before replacing anything.
 - CI builds the finance page against GPU Control Manager commit `b86ddd991ba73d01a56e4be9a9b3cb8abdce788e` and runs the allocation, alerts and reconciliation tests. Use the same revision for reproducible builds.
+
+### Daily Pearl earnings
+
+The rewards chart groups Pearl Fortune PPS hourly rewards into UTC dates and shows actual observations and their cumulative sum. A scheduled 360-hour backfill recovers the window the public endpoint supports. The application retains verified hours locally and distinguishes partial observations, confirmed zeroes and unknown gaps. Historical chart backfill is separate from the current-run profitability coverage.

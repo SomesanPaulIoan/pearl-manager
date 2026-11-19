@@ -45,6 +45,7 @@ export default function MonthlyReport({ revision }: { revision: number }) {
   return (
     <details className="pearl-run-rate monthly-report" onToggle={event => setVisible(event.currentTarget.open)}>
       <summary>Închidere lunară · Pearl și Vast</summary>
+      <a href="/#pearl-earnings">Vezi graficul câștigurilor Pearl ↗</a>
       <label>Lună <input type="month" value={month} max={today} onChange={event => setMonth(event.target.value)} /></label>
       {failed ? <p role="status">Raportul este indisponibil momentan.</p> : !result ? <p role="status">Se încarcă luna selectată…</p> : <>
         <dl className="pearl-receipts">

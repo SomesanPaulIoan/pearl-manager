@@ -96,3 +96,29 @@ button:disabled { opacity: .5; cursor: default; }
   .portfolio-balances .card:last-child { grid-column: 1 / -1; }
   .sales-row { flex-wrap: wrap; }
 }
+
+#pearl-earnings { scroll-margin-top: 12px; }
+#earnings-title { font-size: 18px; font-weight: 750; color: var(--app-text); }
+#earnings-total { display: block; font-size: clamp(21px, 3vw, 32px); margin-top: 5px; }
+.earnings-heading, .earnings-controls, .earnings-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.earnings-heading { justify-content: space-between; }
+.earnings-switch { display: flex; gap: 3px; padding: 3px; background: var(--app-bg); border: 1px solid var(--app-border); border-radius: 10px; }
+.earnings-controls button, .earnings-controls select { min-height: 40px; padding: 7px 11px; border-radius: 7px; font: inherit; font-size: 14px; }
+.earnings-controls button { background: transparent; color: var(--app-muted); }
+.earnings-controls button[aria-pressed="true"] { background: #193e3a; color: #a4f4df; }
+.earnings-controls select { background: var(--app-bg); color: var(--app-text); border: 1px solid var(--app-border); }
+.earnings-plot svg { display: block; width: 100%; overflow: visible; }
+.earnings-plot text, .earnings-legend { color: var(--app-muted); fill: var(--app-muted); font-size: 12px; }
+.earnings-gridline { stroke: var(--app-border); stroke-dasharray: 3 4; }
+.earnings-observed { fill: var(--app-accent); }
+.earnings-partial { fill: #e6b776; }
+.earnings-gap { stroke: #8293a7; stroke-width: 2; }
+.earnings-line { stroke: var(--app-accent); stroke-width: 2; }
+.earnings-line-partial { stroke: #e6b776; stroke-dasharray: 4 4; }
+.earnings-legend span::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--app-accent); margin-right: 5px; }
+.earnings-legend span:nth-child(2)::before { background: #e6b776; }
+.earnings-legend span:nth-child(3)::before { background: #8293a7; }
+#pearl-earnings details { margin-top: 14px; }
+#pearl-earnings summary { cursor: pointer; color: var(--app-accent); min-height: 36px; align-content: center; }
+#pearl-earnings table { width: 100%; text-align: left; border-collapse: collapse; font-size: 14px; }
+#pearl-earnings td, #pearl-earnings th { padding: 8px 4px; border-bottom: 1px solid var(--app-border); }
