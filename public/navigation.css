@@ -1,0 +1,24 @@
+.page-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 18px 0;
+  padding: 5px;
+  border: 1px solid #304961;
+  border-radius: 14px;
+  background: #0b1929;
+}
+.page-nav a {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  color: #c5d7e9;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 650;
+}
+.page-nav a:hover { background: #20384e; }
+.page-nav a:focus-visible { outline: 2px solid #80decf; outline-offset: 2px; }
+.page-nav a[aria-current="page"] { background: #65e3c5; color: #062419; }

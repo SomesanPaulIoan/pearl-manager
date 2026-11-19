@@ -117,5 +117,5 @@ if(u.pathname==='/api/chart/price' || u.pathname==='/api/chart/fortune'){
  catch(e){sendJson(res,502,{error:String(e.message||e)});}return;
 }
 if(u.pathname==='/api/status'){const body=JSON.stringify(await status());res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'});res.end(body);return;}
-let p=u.pathname==='/'?'/index.html':u.pathname;const full=path.resolve(root,'.'+decodeURIComponent(p));if(!full.startsWith(root+path.sep)){res.writeHead(403);res.end();return;}const b=await fs.readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream'});res.end(b);
+let p=u.pathname==='/'?'/index.html':u.pathname;const full=path.resolve(root,'.'+decodeURIComponent(p));if(!full.startsWith(root+path.sep)){res.writeHead(403);res.end();return;}const b=await fs.readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream','Cache-Control':'no-cache'});res.end(b);
 }catch(e){res.writeHead(e.code==='ENOENT'?404:500);res.end('Not found');}}).listen(PORT,process.env.PEARL_MONITOR_HOST||"127.0.0.1",()=>console.log(`Pearl Monitor listening on port ${PORT}`));
