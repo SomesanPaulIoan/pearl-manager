@@ -65,3 +65,6 @@ body { background: radial-gradient(ellipse at 15% 0, #142c43 0, var(--app-bg) 48
   #registru .fin-tabs button { min-height: 42px; padding: 6px 8px; text-align: left; white-space: normal; border: 1px solid var(--app-border); border-radius: 7px; background: var(--app-panel); }
   #registru .fin-tabs button.active { background: #193e3a; }
 }
+.monthly-report > summary { cursor: pointer; font-size: 17px; font-weight: 700; min-height: 40px; align-content: center; }
+.monthly-report > label { display: grid; gap: 5px; max-width: 210px; margin-top: 8px; }
+.monthly-report input { min-width: 0; padding: 8px; border: 1px solid var(--app-border); border-radius: 8px; }

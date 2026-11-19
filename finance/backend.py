@@ -11,6 +11,7 @@ from gcc.financial_api import route
 from gcc.http import Handler, Limiter, Server
 from gcc.vast import Vast
 from gcc.worker import Worker
+from pearl_sales import endpoint as pearl_sales
 
 
 class FinanceHandler(Handler):
@@ -26,6 +27,29 @@ class FinanceHandler(Handler):
             raise Problem('Metodă nepermisă.', 405)
         limit = 393216 if url.path.endswith('/receipt') else 65536
         body = self.body(limit) if self.command == 'POST' else None
+        if url.path == '/api/financial/rig-activity' and self.command == 'GET':
+            machines = {machine['id']: machine for machine in app.vast.machines()}
+            result = {}
+            for rig in app.financial.collections()['rigs']:
+                machine = machines.get(rig['vast_id'])
+                if machine:
+                    rented = machine.get('rented')
+                    result[rig['id']] = 'active' if machine.get('online') is True and isinstance(rented, int) and rented > 0 else 'idle' if rented == 0 else 'unknown'
+            return self.send(200, result)
+        if url.path == '/api/financial/pearl-sales':
+            return self.send(200, pearl_sales(app.financial, body, 'pearl-monitor'))
+        if body and url.path in ('/api/financial/transaction', '/api/financial/bulk'):
+            ids = body.get('ids', []) if url.path.endswith('/bulk') else [body.get('id')]
+            if isinstance(ids, list):
+                with app.store.db() as db:
+                    for transaction_id in ids[:100]:
+                        if not isinstance(transaction_id, str):
+                            continue
+                        managed = db.execute("""SELECT 1 FROM fin_transactions t JOIN fin_mining m
+                            ON t.external_id IN ('pearl-detail:' || m.id, 'pearl-fee:' || m.id)
+                            WHERE t.id=? AND m.status='reconciled'""", (transaction_id,)).fetchone()
+                        if managed:
+                            raise Problem('Editează această vânzare Pearl în Portofoliu.', 409)
         route(self, url.path, url.query, body, 'pearl-monitor')
 
 

@@ -1,0 +1,22 @@
+name: Verify
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm test
+      - uses: actions/checkout@v4
+        with:
+          repository: SomesanPaulIoan/gpu-control-manager
+          ref: b86ddd991ba73d01a56e4be9a9b3cb8abdce788e
+          path: .gcc-dependency
+      - run: PYTHONPATH=finance:.gcc-dependency python3 -m unittest discover -s test -p "test_*.py"
+      - run: npm ci --no-audit --no-fund
+        working-directory: .gcc-dependency
+      - run: bash finance/build.sh .gcc-dependency "$RUNNER_TEMP/pearl-finance"

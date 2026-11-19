@@ -2,3 +2,6 @@
 /node_modules/
 /.env
 /.env.*
+/public/finance/
+__pycache__/
+*.pyc

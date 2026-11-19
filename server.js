@@ -1,4 +1,5 @@
-import { createMiningHistory } from './mining-history.js';
+import { readAlerts } from './rig-alerts.js';
+import { createMiningHistory, monthlyMining } from './mining-history.js';
 import { forwardFinance } from './finance/proxy.js';
 import { estimateProfitability } from './profitability.js';
 import { fleetStatus } from './rigs.js';
@@ -14,6 +15,14 @@ if(!/^prl1[a-z0-9]+$/.test(address||'')){
   process.exit(1);
 }
 const PORT=Number(process.env.PORT||3000);
+const configuredOrigin=process.env.PEARL_FINANCE_ORIGIN ? new URL(process.env.PEARL_FINANCE_ORIGIN) : null;
+const frontendHeaders={
+  'X-Content-Type-Options':'nosniff',
+  'X-Frame-Options':'DENY',
+  'Referrer-Policy':'no-referrer',
+  'Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+};
+
 const salesFile=path.join(path.dirname(fileURLToPath(import.meta.url)),'data','sales.json');
 const initialSales=[];
 let salesWrite=Promise.resolve();
@@ -108,7 +117,21 @@ async function getPrice(){return historyCached('prlQuote',300000,async()=>{
   const data={amount:coin.usd,change24h:coin.usd_24h_change??null,quoteUpdatedAt:updatedAt,source:'CoinGecko (Pearl / pearl-2)',url:'https://www.coingecko.com/en/coins/pearl-research',note:'Preț orientativ agregat de piață.'};
   return data;
 });}
-const miningHistory = createMiningHistory(new URL('./data/', import.meta.url), address, fortuneSummary, fleetStatus);
+let currentVastActivity;
+let vastActivityRequest;
+function vastActivity() {
+  const port=process.env.PEARL_FINANCE_PORT;
+  const token=process.env.PEARL_FINANCE_TOKEN;
+  if(port && token && (!currentVastActivity || Date.now()-currentVastActivity.at>300_000) && !vastActivityRequest) {
+    vastActivityRequest=fetch(`http://127.0.0.1:${port}/api/financial/rig-activity`,{
+      signal:AbortSignal.timeout(8000),headers:{'X-Pearl-Finance-Key':token},
+    }).then(async response=>{
+      currentVastActivity={at:Date.now(),value:response.ok ? await response.json() : {}};
+    }).catch(()=>{currentVastActivity={at:Date.now(),value:{}};}).finally(()=>{vastActivityRequest=undefined;});
+  }
+  return currentVastActivity?.value ?? {};
+}
+const miningHistory = createMiningHistory(new URL('./data/', import.meta.url), address, fortuneSummary, fleetStatus, vastActivity);
 async function profitability() {
   const results = await Promise.allSettled([
     fortuneSummary(), getPrice(),
@@ -121,7 +144,17 @@ async function profitability() {
 }
 async function status(){const results=await Promise.allSettled([getWallet(),getPrice(),getFortune()]);const data=results.map(x=>x.status==='fulfilled'?{ok:true,...x.value}:{ok:false,error:String(x.reason?.message||'Sursa indisponibilă')});return {address,wallet:data[0],price:data[1],fortune:data[2],updatedAt:new Date().toISOString()};}
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
-http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost');if(u.pathname==='/api/sales'){
+http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost');
+if(configuredOrigin && req.headers.host!==configuredOrigin.host)
+ return sendJson(res,403,{error:{message:'Gazdă HTTP nepermisă.'}});
+if(req.headers.origin && req.headers.origin!==(configuredOrigin?.origin??'http://'+req.headers.host))
+ return sendJson(res,403,{error:{message:'Origine nepermisă.'}});
+if(u.pathname==='/api/sales' && process.env.PEARL_FINANCE_PORT){
+ return forwardFinance(req,res,new URL('/api/financial/pearl-sales',u),sendJson);
+}
+if(u.pathname==='/api/sales'){
+ if(req.method!=='GET' && (req.headers['sec-fetch-site']==='cross-site' || req.headers['sec-fetch-site']==='same-site'))
+  return sendJson(res,403,{error:'Origine nepermisă.'});
  if(req.method==='GET'){sendJson(res,200,{sales:await readSales()});return;}
  if(req.method==='POST'||req.method==='PUT'){
   try{const input=await jsonBody(req);const clean=validateSale(input);const rows=await serializeSalesUpdate(old=>{
@@ -137,13 +170,19 @@ http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost
 }
 if(u.pathname.startsWith('/api/financial/')){forwardFinance(req,res,u,sendJson);return;}
 if(u.pathname==='/api/profitability' && req.method==='GET'){sendJson(res,200,await profitability());return;}
+if(u.pathname==='/api/mining/monthly' && req.method==='GET'){
+ const month=u.searchParams.get('month')??'';
+ if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))return sendJson(res,400,{error:'Lună invalidă.'});
+ return sendJson(res,200,monthlyMining(miningHistory.read(),month,0.15,1.10));
+}
+if(u.pathname==='/api/alerts' && req.method==='GET'){sendJson(res,200,readAlerts(miningHistory.read()));return;}
 if(u.pathname==='/api/rigs' && req.method==='GET'){sendJson(res,200,await fleetStatus());return;}
 if(u.pathname==='/api/chart/price' || u.pathname==='/api/chart/fortune'){
  try {sendJson(res,200,await (u.pathname.endsWith('/price')?priceHistory():fortuneHistory()));}
  catch(e){sendJson(res,502,{error:String(e.message||e)});}return;
 }
-if(u.pathname==='/api/status'){const body=JSON.stringify(await status());res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'});res.end(body);return;}
-let p=u.pathname==='/'?'/index.html':u.pathname;const full=path.resolve(root,'.'+decodeURIComponent(p));if(!full.startsWith(root+path.sep)){res.writeHead(403);res.end();return;}const b=await fs.readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream','Cache-Control':'no-cache'});res.end(b);
+if(u.pathname==='/api/status'){const body=JSON.stringify(await status());res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(body);return;}
+let p=u.pathname==='/'?'/index.html':u.pathname;const full=path.resolve(root,'.'+decodeURIComponent(p));if(!full.startsWith(root+path.sep)){res.writeHead(403);res.end();return;}const b=await fs.readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream','Cache-Control':'no-cache',...frontendHeaders});res.end(b);
 }catch(e){res.writeHead(e.code==='ENOENT'?404:500);res.end('Not found');}}).listen(PORT,process.env.PEARL_MONITOR_HOST||"127.0.0.1",()=>{
   console.log(`Pearl Monitor listening on port ${PORT}`);
   void miningHistory.refresh();

@@ -31,10 +31,10 @@
 </div>
 <section class="card full"><div class="top"><span class="label">Vânzări încasate</span><strong id="realized">—</strong></div><div class="top" style="margin-top:12px"><span class="label">Valoare PRL nevândute</span><strong id="unsold">—</strong></div><div class="top" style="margin-top:12px"><span class="label">PRL vândute (înregistrate)</span><strong id="soldAmount">—</strong></div><p class="note" id="reconcile">Valorile sunt calculate automat când datele sunt disponibile.</p><p class="note">Notă: „Total Received” al adresei poate include și transferuri, nu doar mining; „Total Produced” este aproximativ dacă ai folosit alte adrese. Valoarea Fortune Pending este estimativă. Profitul nu include costuri sau comisioane externe.</p></section>
 <div class="portfolio-pair sales-layout"><div>
-<h2 class="section">Istoric vânzări</h2><section class="card"><div id="salesList" class="note">Se încarcă vânzările...</div><div class="sales-pagination" id="salesPagination" hidden><button type="button" class="mini" id="salesPrevious" aria-label="Pagina anterioară de vânzări">Înapoi</button><span class="small" id="salesPage" aria-live="polite"></span><button type="button" class="mini" id="salesNext" aria-label="Pagina următoare de vânzări">Înainte</button></div></section>
+<h2 class="section">Istoric vânzări</h2><section class="card"><div id="salesList" class="note">Se încarcă vânzările...</div><button type="button" class="mini hidden" id="salesArchive">Vânzări arhivate</button><div class="sales-pagination" id="salesPagination" hidden><button type="button" class="mini" id="salesPrevious" aria-label="Pagina anterioară de vânzări">Înapoi</button><span class="small" id="salesPage" aria-live="polite"></span><button type="button" class="mini" id="salesNext" aria-label="Pagina următoare de vânzări">Înainte</button></div></section>
 </div><div>
 <h2 class="section" id="saleFormTitle">Înregistrează o vânzare</h2>
-<section class="card"><form id="saleForm"><label class="field-label" for="saleDate">Data exactă a vânzării</label><input type="date" id="saleDate" required><label class="field-label" for="saleQuantity">Cantitate vândută (PRL)</label><input id="saleQuantity" inputmode="decimal" type="number" step="0.00000001" min="0.00000001" required placeholder="Ex. 10"><label class="field-label" for="saleUsd">USD primiți efectiv (total)</label><input id="saleUsd" type="number" step="0.01" min="0" inputmode="decimal" required placeholder="Ex. 15.00"><label class="field-label" for="saleNote">Notiță (opțional)</label><input id="saleNote" maxlength="250" placeholder="Ex. PearlChain Live / ordin limită"><div class="formButtons"><button id="saveSale" type="submit">Salvează vânzarea</button><button id="cancelEdit" class="mini hidden" type="button">Anulează editarea</button><button id="exportSales" class="mini" type="button">Export CSV</button></div><p class="note" id="saleMessage">Vânzările se salvează în fișierul data/sales.json de pe calculatorul care rulează aplicația, nu doar în browser.</p></form></section>
+<section class="card"><form id="saleForm"><label class="field-label" for="saleDate">Data exactă a vânzării</label><input type="date" id="saleDate" required><label class="field-label" for="saleQuantity">Cantitate vândută (PRL)</label><input id="saleQuantity" inputmode="decimal" type="number" step="0.00000001" min="0.00000001" required placeholder="Ex. 10"><label class="field-label" for="saleUsd">USD încasare brută</label><input id="saleUsd" type="number" step="0.01" min="0" inputmode="decimal" required placeholder="Ex. 15.00"><div id="saleCommission" class="hidden"><label class="field-label" for="saleFee">Comision separat (USD, opțional)</label><input id="saleFee" inputmode="decimal" type="number" step="0.01" min="0" placeholder="0"></div><label class="field-label" for="saleNote">Notiță (opțional)</label><input id="saleNote" maxlength="250" placeholder="Ex. PearlChain Live / ordin limită"><div class="formButtons"><button id="saveSale" type="submit">Salvează vânzarea</button><button id="cancelEdit" class="mini hidden" type="button">Anulează editarea</button><button id="exportSales" class="mini" type="button">Export CSV</button></div><p class="note" id="saleMessage" role="status"></p></form></section>
 </div></div>
 <div class="portfolio-pair portfolio-details"><div>
 <div class="section">Detalii Fortune</div><section class="card"><div class="top"><div class="label">Balance (în pool)</div><b id="fortuneBalance">—</b></div><div class="top" style="margin-top:14px"><div class="label">PPS Pending (nematurizat)</div><b id="fortunePending">—</b></div><p class="note" style="margin-top:16px">Date citite automat din API-ul PPS Fortune. Pending este convertit din <code>immature_q64</code>; verifică dacă valoarea corespunde câmpului PPS Pending Credit de pe Fortune.</p><a class="link" href="https://pearlfortune.org/" target="_blank" rel="noopener">Deschide Pearl Fortune ↗</a></section>
@@ -42,99 +42,4 @@
 <div class="section">Adresa monitorizată</div><section class="card"><div class="address" id="address">—</div><a id="explorer" class="link" target="_blank" rel="noopener">Deschide în PearlChain Live ↗</a></section>
 </div></div>
 <div class="controls"><button class="refresh" id="reload">↻ Actualizează</button><div class="small" id="updated">Verificare sold la 30 secunde · preț la 5 minute</div></div><p class="note">Wallet este citit din PearlChain Live, iar Balance și Pending din Pearl Fortune. Prețul este agregat de CoinGecko și memorat maximum 5 minute; ora ultimei cotații este afișată. Dacă nu putem confirma o valoare, afișăm — în loc de 0.</p><div class="footer">Pearl Monitor · doar citire · fără chei private</div>
-</main><script>
-const $=id=>document.getElementById(id);let current=null;let sales=[];let editingId=null;let salesPage=0;const salesPageSize=6;const fmt=(n,d=2)=>new Intl.NumberFormat('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}).format(n);
-function render(){
- const w=current?.wallet?.ok?current.wallet.amount:null;
- const p=current?.price?.ok?current.price.amount:null;
- const fd=current?.fortune?.ok?current.fortune:null;
- const f=fd?fd.amount:null;
- $('wallet').textContent=w===null?'—':fmt(w,4);
- $('fortune').textContent=f===null?'—':fmt(f,4);
- $('fortuneBalance').textContent=fd?fmt(fd.balance,5)+' PRL':'—';
- $('fortunePending').textContent=fd?fmt(fd.pending,5)+' PRL':'—';
- $('walletStatus').textContent=current?.wallet?.ok?'Citit din PearlChain Live':current?.wallet?.error||'Se încarcă...';
- $('fortuneStatus').textContent=fd?'Fortune PPS · '+(fd.readAt?new Date(fd.readAt).toLocaleTimeString('ro-RO'):'actualizat') :current?.fortune?.error||'Se încarcă...';
- $('price').textContent=p===null?'—':'$'+fmt(p,4);
- $('priceStatus').textContent=current?.price?.ok?'CoinGecko · actualizat '+(current.price.quoteUpdatedAt?new Date(current.price.quoteUpdatedAt).toLocaleTimeString('ro-RO'):'recent')+' · 24h '+(current.price.change24h===null?'—':current.price.change24h.toFixed(2)+'%'):current?.price?.error||'Se încarcă...';
- $('total').textContent=p!==null&&w!==null&&f!==null?'$'+fmt((w+f)*p):'—';
- $('totalNote').textContent=p===null||w===null||f===null?'Total incomplet · așteptăm toate cele trei surse':'Wallet + Fortune Balance + Fortune Pending · valoare estimată';
- const received=current?.wallet?.ok?current.wallet.totalReceived:null;
- const soldPrl=sales.reduce((sum,x)=>sum+Number(x.quantity),0);
- const realized=sales.reduce((sum,x)=>sum+Number(x.usd),0);
- const inventory=w!==null&&f!==null?w+f:null;
- const produced=received!==null&&received!==undefined&&f!==null?received+f:null;
- const unsoldVal=inventory!==null&&p!==null?inventory*p:null;
- $('produced').textContent=produced===null?'—':fmt(produced,4)+' PRL';
- $('realized').textContent='$'+fmt(realized);
- $('soldAmount').textContent=fmt(soldPrl,4)+' PRL';
- $('unsold').textContent=unsoldVal===null?'—':'$'+fmt(unsoldVal);
- $('revenue').textContent=unsoldVal===null?'—':'$'+fmt(realized+unsoldVal);
- $('reconcile').textContent=produced===null||inventory===null?'Așteptăm sursele Wallet/Fortune pentru reconciliere.':`Verificare: produse ${fmt(produced,4)} PRL; vândute + deținute ${fmt(soldPrl+inventory,4)} PRL. Diferență ${fmt(produced-soldPrl-inventory,4)} PRL (transferuri, comisioane, alte adrese sau vânzări neînregistrate).`;
-
-}
-async function load(){try{$('status').textContent='● Se actualizează';const r=await fetch('/api/status',{cache:'no-store'});if(!r.ok)throw Error('Eroare server');current=await r.json();$('address').textContent=current.address;$('explorer').href='https://pearlchain.live/api/explorer/address/'+encodeURIComponent(current.address);$('status').textContent=current.wallet.ok&&current.price.ok&&current.fortune.ok?'● Online':'● Parțial';$('updated').textContent='Ultima verificare: '+new Date(current.updatedAt).toLocaleTimeString('ro-RO');}catch(e){current={wallet:{error:e.message},price:{error:e.message}};$('status').textContent='● Offline';$('updated').textContent='Nu s-a putut contacta serverul';}render()}
-
-// Native SVG line charts: no external JS libraries, no fabricated data.
-const safeNum=v=>typeof v==='number'?v:typeof v==='string'&&v.trim()!==''?Number(v):NaN;
-function drawLineChart(hostId,points,formatY,unit=''){
- const host=$(hostId); if(!points||points.length<2){host.innerHTML='<div class="chartErr">Date insuficiente pentru grafic.</div>';return;}
- const values=points.map(p=>p[1]);let lo=Math.min(...values),hi=Math.max(...values);if(lo===hi){lo-=Math.max(0.001,Math.abs(lo)*.02);hi+=Math.max(.001,Math.abs(hi)*.02);}
- const W=550,H=190,L=57,R=12,T=13,B=29;let xmin=points[0][0],xmax=points[points.length-1][0];if(xmin===xmax)xmax=xmin+1;
- const x=t=>L+(t-xmin)/(xmax-xmin)*(W-L-R);const y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
- const line=points.map((p,i)=>(i?'L':'M')+x(p[0]).toFixed(2)+','+y(p[1]).toFixed(2)).join(' ');
- const area=line+` L${x(points[points.length-1][0]).toFixed(2)},${H-B} L${x(points[0][0]).toFixed(2)},${H-B} Z`;
- const labels=[0,.5,1].map(f=>{const v=hi-(hi-lo)*f,yy=T+(H-T-B)*f;return `<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="#294159" stroke-dasharray="3 5"/><text x="${L-7}" y="${yy+4}" fill="#99adc2" text-anchor="end" font-size="11">${formatY(v)}</text>`}).join('');
- const timeline=[0,.5,1].map(f=>{const t=xmin+(xmax-xmin)*f;return `<text x="${x(t)}" y="${H-5}" text-anchor="middle" fill="#9db1c6" font-size="11">${new Date(t).toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'})}</text>`}).join('');
- host.innerHTML=`<svg class="chartSvg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafic ${unit}"><defs><linearGradient id="grad-${hostId}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#65e3c5" stop-opacity=".25"/><stop offset="1" stop-color="#65e3c5" stop-opacity="0"/></linearGradient></defs>${labels}<path d="${area}" fill="url(#grad-${hostId})"/><path d="${line}" fill="none" stroke="#65e3c5" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>${timeline}</svg><div class="chartLegend"><span>Primul: ${formatY(points[0][1])} ${unit}</span><span>Ultimul: ${formatY(points[points.length-1][1])} ${unit}</span></div>`;
-}
-function parseFortuneTimeseries(raw){
- // Summaries may have various schemas. Accept only actual time/value pairs with hashrate keys.
- const visited=new Set(),candidates=[];
- const timeKey=/^(timestamp|time|ts|date|datetime|bucket|bucket_start|bucket_start_ms|time_ms|start_ms|window_start_ms)$/i;
- const rateKey=/(hash.?rate|hashrate|rate_ph|ph_s|phs|hash_rate)/i;
- function convertTime(v){if(typeof v==='string'&&!/^\d+(\.\d+)?$/.test(v)){const t=Date.parse(v);return Number.isFinite(t)?t:NaN;}const n=safeNum(v);return Number.isFinite(n)?n>1e12?n:n>1e9?n*1000:NaN:NaN;}
- function convertRate(v,k){let n=safeNum(v);if(!Number.isFinite(n)||n<0)return NaN;const key=k.toLowerCase();if(key.includes('th'))return n/1000;if(key.includes('gh'))return n/1e6;if(key.includes('ph')||key.includes('hashrate_ph'))return n;if(key.includes('hashrate')||key.includes('hash_rate'))return n>1e12?n/1e15:n;return n;}
- function walk(obj,depth=0){if(depth>8||obj===null||typeof obj!=='object'||visited.has(obj))return;visited.add(obj);
-  if(Array.isArray(obj)&&obj.length>=2){
-   const pts=[];
-   for(const row of obj){if(!row||typeof row!=='object'||Array.isArray(row))continue;const keys=Object.keys(row);const tk=keys.find(k=>timeKey.test(k));const vk=keys.find(k=>rateKey.test(k)&&!/(network|pool|net_|accept|reject)/i.test(k));if(!tk||!vk)continue;const t=convertTime(row[tk]);const v=convertRate(row[vk],vk);if(Number.isFinite(t)&&Number.isFinite(v))pts.push([t,v]);}
-   if(pts.length>=2)candidates.push(pts);
-  }
-  for(const val of Object.values(obj))if(val&&typeof val==='object')walk(val,depth+1);
- }
- walk(raw);if(!candidates.length)return null;
- const pts=candidates.sort((a,b)=>b.length-a.length)[0].sort((a,b)=>a[0]-b[0]);return pts.filter((p,i)=>i===0||p[0]!==pts[i-1][0]);
-}
-async function loadCharts(){
- const results=await Promise.allSettled([fetch('/api/chart/price',{cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||'CoinGecko indisponibil');return d;}),fetch('/api/chart/fortune',{cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||'Fortune indisponibil');return d;})]);
- if(results[0].status==='fulfilled'){
-  const p=results[0].value.points;$('priceChartStatus').textContent='CoinGecko · '+p.length+' puncte · actualizare la 5 minute';$('priceChartCurrent').textContent='$'+fmt(p[p.length-1][1],4);drawLineChart('priceChartPlot',p,v=>'$'+v.toFixed(v>=1?2:4),'USD');
- }else{$('priceChartStatus').textContent='Istoric indisponibil';$('priceChartPlot').innerHTML='<div class="chartErr">'+escapeHtml(results[0].reason.message)+'</div>';}
- if(results[1].status==='fulfilled'){
-  const pts=results[1].value.points;if(Array.isArray(pts)&&pts.length>=2){const rolling=results[1].value.rolling||[];const avg=rolling.find(x=>x.hours===24);$('fortuneChartStatus').textContent='Hashrate personal · '+pts.length+' puncte · '+(avg?'medie 24h '+avg.phs.toFixed(2)+' PH/s':'PH/s')+' · actualizare la 1 minut';drawLineChart('fortuneChartPlot',pts,v=>v.toFixed(2),'PH/s');}
-  else{$('fortuneChartStatus').textContent='Datele Fortune au altă structură';$('fortuneChartPlot').innerHTML='<div class="chartErr">Nu am putut identifica seria hashrate din răspunsul API. Datele nu sunt inventate. Dacă graficul lipsește, trimite-mi răspunsul Network pentru cererea care conține adresa și parametrul hours=24.</div>';}
- }else{$('fortuneChartStatus').textContent='Istoric indisponibil';$('fortuneChartPlot').innerHTML='<div class="chartErr">'+escapeHtml(results[1].reason.message)+'</div>';}
-}
-function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function renderSales(){
- const pages=Math.max(1,Math.ceil(sales.length/salesPageSize));
- salesPage=Math.min(salesPage,pages-1);
- const visibleSales=[...sales].reverse().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(salesPage*salesPageSize,(salesPage+1)*salesPageSize);
- $('salesPagination').hidden=pages<=1;
- $('salesPage').textContent=`${salesPage+1} / ${pages}`;
- $('salesPrevious').disabled=salesPage===0;
- $('salesNext').disabled=salesPage>=pages-1;
- $('salesList').innerHTML=visibleSales.length?visibleSales.map(s=>`<div class="sales-row"><div><b>${fmt(Number(s.quantity),4)} PRL → $${fmt(Number(s.usd))}</b><div class="sales-meta">${s.date?escapeHtml(s.date):'<span class="warn">Data exactă lipsește — completeaz-o</span>'} · $${fmt(Number(s.usd)/Number(s.quantity),4)}/PRL</div>${s.note?`<div class="sales-meta">${escapeHtml(s.note)}</div>`:''}</div><div class="salesActions"><button class="mini" data-action="edit" data-id="${escapeHtml(s.id)}">Editează</button><button class="mini danger" data-action="delete" data-id="${escapeHtml(s.id)}">Șterge</button></div></div>`).join(''):'Nicio vânzare încă.';render();}
-async function loadSales(){try{const r=await fetch('/api/sales',{cache:'no-store'});if(!r.ok)throw Error('Nu se pot încărca vânzările');sales=(await r.json()).sales;renderSales();}catch(e){$('salesList').textContent=e.message;}}
-function resetForm(){editingId=null;$('saleForm').reset();$('saleFormTitle').textContent='Înregistrează o vânzare';$('cancelEdit').classList.add('hidden');$('saveSale').textContent='Salvează vânzarea';}
-$('saleDate').value=new Date().toLocaleDateString('en-CA');
-$('salesPrevious').addEventListener('click',()=>{salesPage--;renderSales()});
-$('salesNext').addEventListener('click',()=>{salesPage++;renderSales()});
-$('salesList').addEventListener('click',async e=>{const btn=e.target.closest('button[data-action]');if(!btn)return;const item=sales.find(s=>s.id===btn.dataset.id);if(!item)return;if(btn.dataset.action==='edit'){editingId=item.id;$('saleDate').value=item.date||'';$('saleQuantity').value=item.quantity;$('saleUsd').value=item.usd;$('saleNote').value=item.note||'';$('saleFormTitle').textContent='Editează vânzarea';$('saveSale').textContent='Salvează modificările';$('cancelEdit').classList.remove('hidden');$('saleForm').scrollIntoView({behavior:'smooth'});}else if(confirm('Ștergi definitiv această vânzare?')){const r=await fetch('/api/sales?id='+encodeURIComponent(item.id),{method:'DELETE'});if(r.ok)loadSales();else alert('Nu s-a putut șterge');}});
-$('cancelEdit').addEventListener('click',resetForm);
-$('saleForm').addEventListener('submit',async e=>{e.preventDefault();const data={date:$('saleDate').value,quantity:Number($('saleQuantity').value),usd:Number($('saleUsd').value),note:$('saleNote').value};if(editingId)data.id=editingId;try{const r=await fetch('/api/sales',{method:editingId?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await r.json();if(!r.ok)throw Error(result.error||'Eroare la salvare');sales=result.sales;resetForm();$('saleDate').value=new Date().toLocaleDateString('en-CA');$('saleMessage').textContent='Vânzarea a fost salvată.';renderSales();}catch(error){$('saleMessage').textContent='Eroare: '+error.message;}});
-$('exportSales').addEventListener('click',()=>{const rows=[['Data','Cantitate PRL','USD primit','USD/PRL','Notita'],...sales.map(s=>[s.date,s.quantity,s.usd,(s.usd/s.quantity).toFixed(8),s.note||''])];const csv=rows.map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='pearl-sales.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);});
-load();loadSales();loadCharts();setInterval(load,30000);setInterval(loadCharts,60000);
-if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
-</script></body></html>
+</main><script src="/portfolio.js" defer></script></body></html>

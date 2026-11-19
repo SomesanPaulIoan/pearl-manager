@@ -1,8 +1,10 @@
+import { recordAlerts } from './rig-alerts.js';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 
 const HOUR_MS = 3_600_000;
 const MINUTE_MS = 60_000;
 const HISTORY_HOURS = 24 * 32;
+const REPORT_HOURS = 24 * 400;
 const PPS_SCALE = 2 ** 64 * 1e8;
 
 const decimal = value => typeof value === 'string' && /^\d+$/.test(value) ? BigInt(value) : null;
@@ -49,7 +51,7 @@ export function historyTotals(history, hours, now) {
   };
 }
 
-export function recordHistory(history, summary, fleet, now = Date.now()) {
+export function recordHistory(history, summary, fleet, now = Date.now(), vast = {}) {
   const currentHour = Math.floor(now / HOUR_MS);
   const pps = summary?.pps_income;
   if (Number.isFinite(pps?.read_at_ms) && Math.abs(now - pps.read_at_ms) <= 15 * MINUTE_MS &&
@@ -90,12 +92,97 @@ export function recordHistory(history, summary, fleet, now = Date.now()) {
     const minutes = bucket.minutes ??= {};
     minutes[Math.floor(now / MINUTE_MS) % 60] = gpuWatts;
   }
-  for (const hour of Object.keys(history.hours)) {
-    if (Number(hour) < currentHour - HISTORY_HOURS) delete history.hours[hour];
+  for (const rig of fleet?.rigs ?? []) {
+    if (rig.state !== 'online' || !rig.gpus.length) continue;
+    const { complete: powerComplete, gpuWatts: watts } = fleetPower({ rigs: [rig] });
+    const knownMining = rig.gpus.every(gpu => gpu.mining !== 'unknown');
+    const mining = rig.gpus.some(gpu => ['container', 'process'].includes(gpu.mining));
+    const rate = knownMining ? (mining ? rig.minerHashrateHs ?? null : 0) : null;
+    if (!powerComplete && rate === null) continue;
+    const bucket = history.hours[currentHour] ??= {};
+    const rigs = bucket.rigs ??= {};
+    const id = rig.financialRigId || rig.name;
+    const readings = rigs[id] ??= {};
+    const rental = vast[id];
+    const activity = mining && rental === 'active' ? 'mixed'
+      : mining ? 'pearl' : rental === 'active' ? 'vast'
+      : knownMining && rental === 'idle' ? 'idle' : 'unknown';
+    readings[Math.floor(now / MINUTE_MS) % 60] = [powerComplete ? watts : null, rate, activity, rig.name];
+  }
+  for (const [hour, bucket] of Object.entries(history.hours)) {
+    if (Number(hour) < currentHour - REPORT_HOURS) delete history.hours[hour];
+    else if (Number(hour) < currentHour - HISTORY_HOURS) {
+      if (bucket.minutes) {
+        const samples = Object.values(bucket.minutes);
+        bucket.archivedPower = { count: samples.length, gpuKwh: samples.reduce((sum, watts) => sum + watts, 0) / 60_000 };
+        delete bucket.minutes;
+      }
+      if (bucket.rigs) {
+        bucket.archivedActivity = summarizeActivity(bucket.rigs);
+        delete bucket.rigs;
+      }
+    }
   }
 }
 
-export function createMiningHistory(directory, wallet, getSummary, getFleet) {
+function summarizeActivity(rigs) {
+  const result = {};
+  for (const [id, minutes] of Object.entries(rigs ?? {})) {
+    for (const [watts, , state, name] of Object.values(minutes)) {
+      if (!state) continue;
+      const rig = result[id] ??= { name, states: {} };
+      const entry = rig.states[state] ??= { minutes: 0, metered: 0, gpuKwh: 0 };
+      entry.minutes++;
+      if (Number.isFinite(watts)) {
+        entry.metered++;
+        entry.gpuKwh += watts / 60_000;
+      }
+    }
+  }
+  return result;
+}
+
+export function monthlyMining(history, month, overhead, tariff, now = Date.now()) {
+  const first = Date.parse(month + '-01T00:00:00Z');
+  const next = new Date(first);
+  next.setUTCMonth(next.getUTCMonth() + 1);
+  const begin = first / HOUR_MS;
+  const end = Math.min(next.valueOf(), now) / HOUR_MS;
+  let prl = 0;
+  let coveredHours = 0;
+  let meteredMinutes = 0;
+  let gpuKwh = 0;
+  const activity = {};
+  for (let hour = begin; hour < Math.floor(end); hour++) {
+    const bucket = history?.hours?.[hour];
+    for (const [id, report] of Object.entries(bucket?.archivedActivity ?? summarizeActivity(bucket?.rigs))) {
+      const rig = activity[id] ??= { name: report.name, states: {} };
+      for (const [state, data] of Object.entries(report.states)) {
+        const current = rig.states[state] ??= { minutes: 0, metered: 0, costRon: 0 };
+        current.minutes += data.minutes;
+        current.metered += data.metered;
+        current.costRon += data.gpuKwh * (1 + overhead) * tariff;
+      }
+    }
+    if (Number.isFinite(bucket?.prl)) {
+      coveredHours++;
+      prl += bucket.prl;
+    }
+    if (bucket?.minutes) {
+      const samples = Object.values(bucket.minutes);
+      meteredMinutes += samples.length;
+      gpuKwh += samples.reduce((sum, watts) => sum + watts, 0) / 60_000;
+    } else if (bucket?.archivedPower) {
+      meteredMinutes += bucket.archivedPower.count;
+      gpuKwh += bucket.archivedPower.gpuKwh;
+    }
+  }
+  const kwh = meteredMinutes ? gpuKwh * (1 + overhead) : null;
+  return { month, hours: Math.max(0, Math.floor(end) - begin), coveredHours, meteredMinutes,
+    prl: coveredHours ? prl : null, kwh, activity, estimatedCostRon: kwh === null ? null : kwh * tariff };
+}
+
+export function createMiningHistory(directory, wallet, getSummary, getFleet, getVast = () => ({})) {
   const filename = new URL('mining-history.json', directory);
   let history;
   let pending;
@@ -110,7 +197,9 @@ export function createMiningHistory(directory, wallet, getSummary, getFleet) {
       }
     }
     const [pool, fleet] = await Promise.allSettled([getSummary(), getFleet()]);
-    recordHistory(history, pool.value, fleet.value);
+    const now = Date.now();
+    recordHistory(history, pool.value, fleet.value, now, getVast());
+    recordAlerts(history, fleet.value, now);
     await mkdir(directory, { recursive: true, mode: 0o700 });
     const temp = new URL('mining-history.json.tmp', directory);
     await writeFile(temp, JSON.stringify(history), { mode: 0o600 });

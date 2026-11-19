@@ -44,3 +44,6 @@ body { background: radial-gradient(ellipse at 15% 0, #142c43 0, var(--app-bg) 48
   .rig .table-scroll td:first-child { font-weight: 750; }
   .rig .table-scroll td:nth-child(n+3)::before { content: attr(data-label); display: block; color: var(--app-muted); font-size: 11px; }
 }
+.alert-events { margin: 4px 0 10px; padding-left: 22px; }
+.alert-events li { margin: 7px 0; }
+.alerts-panel > div { color: var(--app-muted); }

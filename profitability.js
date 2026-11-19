@@ -1,3 +1,4 @@
+import { estimateRigPeriods } from './rig-economics.js';
 import { fleetPower, historyTotals, ppsProduction } from './mining-history.js';
 
 const PERIODS = [1, 24, 168, 720];
@@ -30,6 +31,9 @@ export function estimateProfitability({ pps, quote, fx, fleet, tariff, overhead,
       profitRon: revenueRon === null || energyRon === null ? null : revenueRon - energyRon,
     };
   });
+  for (const period of periods) {
+    period.rigs = estimateRigPeriods({ rigs: fleet?.rigs ?? [], period, history, now, tariff, overhead, priceUsd, usdRon });
+  }
   return {
     periods, tariff, overhead, gpuWatts, wallKw, rigCount, meteredGpus,
     priceUsd, usdRon, fxDate: usdRon === null ? null : fx.date,

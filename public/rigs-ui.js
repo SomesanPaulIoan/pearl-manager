@@ -118,6 +118,28 @@ async function update() {
     refresh.disabled = false;
   }
 }
-refresh.addEventListener('click', update);
+async function updateAlerts() {
+  const title = document.querySelector('#alerts-title');
+  const list = document.querySelector('#alerts-list');
+  try {
+    const response = await fetch('/api/alerts', { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error('Alert API error');
+    const data = await response.json();
+    title.textContent = `Alerte operaționale · ${data.active.length} active`;
+    const events = data.events.slice(0, 15);
+    const entries = events.map(event => element('li',
+      `${event.rig} · ${event.active ? event.message : 'Rezolvat: ' + event.message} · ${time.format(new Date(event.at))}`,
+      event.active ? 'warn' : 'detail'));
+    const log = element('ul', '', 'alert-events');
+    log.append(...entries);
+    list.replaceChildren(log);
+    if (!entries.length) list.replaceChildren(element('p', 'Niciun incident înregistrat.', 'detail'));
+  } catch {
+    list.textContent = 'Alertele sunt indisponibile momentan.';
+  }
+}
+
+refresh.addEventListener('click',()=>{void update();void updateAlerts();});
 update();
-setInterval(update, 30_000);
+updateAlerts();
+setInterval(()=>{void update();void updateAlerts();}, 30_000);
