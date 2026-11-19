@@ -1,3 +1,4 @@
+import { fleetStatus } from './rigs.js';
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -110,6 +111,7 @@ http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost
  }
  sendJson(res,405,{error:'Metodă nepermisă'});return;
 }
+if(u.pathname==='/api/rigs' && req.method==='GET'){sendJson(res,200,await fleetStatus());return;}
 if(u.pathname==='/api/chart/price' || u.pathname==='/api/chart/fortune'){
  try {sendJson(res,200,await (u.pathname.endsWith('/price')?priceHistory():fortuneHistory()));}
  catch(e){sendJson(res,502,{error:String(e.message||e)});}return;
