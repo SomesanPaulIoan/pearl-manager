@@ -34,3 +34,11 @@ Set `PEARL_RIGS_CONFIG` to the absolute path of a local JSON configuration file 
 Remote hosts need NVIDIA CLI access and must already be in the service user’s SSH known hosts. The dashboard reads GPU sensors and compute processes. Where Docker read access is already available, it also checks for processes belonging to the `pearl-miner` container. Network or sensor failures are indicated in the dashboard. Keep real host configuration and SSH keys outside the repository.
 
 When the service account can read recent `pearl-miner` container logs, the rig dashboard shows the miner-reported proof rate. The Pearl Fortune chart shows the pool’s effective rate at wallet level.
+
+For a rig where the monitoring account lacks Docker socket access, an administrator can grant only the fixed log command with a sudoers entry installed using `visudo`. Replace `rigmonitor` with the SSH account on that rig.
+
+```sudoers
+rigmonitor ALL=(root) NOPASSWD: /usr/bin/docker logs --since 90s --tail 300 pearl-miner
+```
+
+Pearl Monitor tries that exact command with non-interactive sudo when direct log access fails.

@@ -11,10 +11,13 @@ if LC_ALL=C nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name --format=c
 fi
 if pids=$(docker top pearl-miner -eo pid 2>/dev/null); then
   printf '\\n--container--\\n%s\\n' "$pids"
-  printf '\\n--hashrate--\\n'
-  docker logs --since 90s --tail 300 pearl-miner 2>&1 |
-    grep ' event=large.progress ' | tail -n 1
-fi`;
+else
+  printf '\\n--container--\\n'
+fi
+printf '\\n--hashrate--\\n'
+(docker logs --since 90s --tail 300 pearl-miner 2>&1 ||
+  sudo -n /usr/bin/docker logs --since 90s --tail 300 pearl-miner 2>&1) |
+  grep ' event=large.progress ' | tail -n 1`;
 
 const number = text => text && /^-?\d+(?:\.\d+)?$/.test(text) ? Number(text) : null;
 const rows = text => text.trim().split(/\r?\n/).filter(Boolean).map(line => line.split(',').map(value => value.trim()));
@@ -40,7 +43,7 @@ function parseProbe(stdout) {
   }).filter(gpu => gpu.index !== null && gpu.name);
   const match = progress.match(/\bproof_per_sec="(\d+(?:\.\d+)?)\s*([kMGTPE]?)\/s"/);
   const multiplier = { '': 1, k: 1e3, M: 1e6, G: 1e9, T: 1e12, P: 1e15, E: 1e18 };
-  const minerHashrateHs = match && gpus.some(gpu => gpu.mining === 'container')
+  const minerHashrateHs = match && gpus.some(gpu => gpu.mining === 'container' || gpu.mining === 'process')
     ? Number(match[1]) * multiplier[match[2]]
     : null;
   return { gpus, minerHashrateHs };
